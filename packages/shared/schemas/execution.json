@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ExecutionResult",
+  "type": "object",
+  "properties": {
+    "exit_code": { "type": "integer" },
+    "stdout": { "type": "string" },
+    "stderr": { "type": "string" },
+    "duration_ms": { "type": "number" },
+    "timed_out": { "type": "boolean" },
+    "command": { "type": "string" }
+  },
+  "required": ["exit_code", "stdout", "stderr", "duration_ms", "timed_out", "command"]
+}

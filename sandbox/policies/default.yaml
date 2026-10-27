@@ -1,0 +1,25 @@
+# EVIDA Sandbox Security Policy
+version: "1.0"
+policy:
+  name: "default_isolated"
+  description: "Standard non-privileged execution policy for verification jobs"
+
+limits:
+  timeout_seconds: 60
+  max_memory_mb: 512
+  max_output_bytes: 1048576  # 1MB output cap
+  max_processes: 64
+
+security:
+  allow_network: false
+  allow_root: false
+  run_as_user: "sandboxuser"
+  run_as_uid: 1000
+  run_as_gid: 1000
+  read_only_root: true
+  drop_capabilities:
+    - ALL
+  forbidden_mounts:
+    - "/var/run/docker.sock"
+    - "/etc/shadow"
+    - "/root"

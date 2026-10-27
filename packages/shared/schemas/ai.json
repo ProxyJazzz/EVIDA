@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AIResponse",
+  "type": "object",
+  "properties": {
+    "content": { "type": "string" },
+    "model": { "type": "string" },
+    "provider": { "type": "string" },
+    "usage": {
+      "type": "object",
+      "properties": {
+        "prompt_tokens": { "type": "integer" },
+        "completion_tokens": { "type": "integer" },
+        "total_tokens": { "type": "integer" }
+      }
+    },
+    "finish_reason": { "type": "string" },
+    "duration_ms": { "type": "number" }
+  },
+  "required": ["content", "model", "provider", "duration_ms"]
+}

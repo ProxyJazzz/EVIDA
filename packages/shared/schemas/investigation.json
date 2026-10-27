@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Investigation",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "repository_id": { "type": "string", "format": "uuid" },
+    "issue_title": { "type": "string" },
+    "issue_description": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": [
+        "PENDING",
+        "REPRODUCING",
+        "INVESTIGATING",
+        "HYPOTHESIZING",
+        "PATCHING",
+        "VERIFYING",
+        "VERIFIED",
+        "UNVERIFIED",
+        "FAILED"
+      ]
+    },
+    "hypothesis": { "type": "object" },
+    "regression_test_code": { "type": "string" },
+    "candidate_patch": { "type": "string" },
+    "verification_evidence": { "type": "object" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" }
+  },
+  "required": ["id", "repository_id", "issue_title", "status"]
+}
