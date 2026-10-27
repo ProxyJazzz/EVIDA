@@ -32,15 +32,25 @@ export interface ReadinessCheckResponse {
 }
 
 export type InvestigationStatus =
-  | "PENDING"
+  | "CREATED"
+  | "INGESTING"
   | "REPRODUCING"
   | "INVESTIGATING"
+  | "VERIFYING"
+  | "COMPLETED"
+  | "FAILED"
+  | "PENDING"
   | "HYPOTHESIZING"
   | "PATCHING"
-  | "VERIFYING"
   | "VERIFIED"
-  | "UNVERIFIED"
-  | "FAILED";
+  | "UNVERIFIED";
+
+export type InvestigationEventType =
+  | "INVESTIGATION_CREATED"
+  | "INVESTIGATION_STARTED"
+  | "STATE_TRANSITIONED"
+  | "INVESTIGATION_COMPLETED"
+  | "INVESTIGATION_FAILED";
 
 export interface TokenUsage {
   prompt_tokens: number;
@@ -84,9 +94,13 @@ export interface VerificationEvidence {
 
 export interface Investigation {
   id: string;
+  investigation_id?: string;
+  project_id?: string | null;
   repository_id: string;
-  issue_title: string;
-  issue_description?: string;
+  title: string;
+  bug_description?: string | null;
+  issue_title?: string;
+  issue_description?: string | null;
   status: InvestigationStatus;
   hypothesis?: InvestigationHypothesis;
   regression_test_code?: string;
@@ -94,6 +108,28 @@ export interface Investigation {
   verification_evidence?: VerificationEvidence;
   created_at: string;
   updated_at: string;
+}
+
+export interface InvestigationCreateRequest {
+  project_id?: string | null;
+  repository_id: string;
+  title: string;
+  bug_description?: string | null;
+}
+
+export interface InvestigationEvent {
+  id: string;
+  investigation_id: string;
+  event_type: InvestigationEventType | string;
+  from_status: InvestigationStatus | null;
+  to_status: InvestigationStatus;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface InvestigationEventsResponse {
+  items: InvestigationEvent[];
+  total: number;
 }
 
 export interface APIErrorResponse {

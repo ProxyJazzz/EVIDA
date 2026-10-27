@@ -72,7 +72,7 @@ export default function DashboardPage() {
               </p>
             </div>
             <div className="flex items-center gap-4">
-              <StatusBadge status="PENDING" />
+              <StatusBadge status="CREATED" />
               <span className="text-xs text-gray-500 font-mono">Ready for Phase 1</span>
             </div>
           </div>

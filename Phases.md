@@ -29,7 +29,7 @@ Phase 7: End-to-End Evaluation & Hardening
 
 ## Phase Details
 
-### Phase 0 — Project Setup & Architecture Foundation (Current)
+### Phase 0 — Project Setup & Architecture Foundation (Completed)
 - Initialize monorepo (`apps/web`, `apps/api`, `packages/shared`, `sandbox`, `supabase`).
 - Configure FastAPI with Pydantic v2, structured logging, health/readiness endpoints.
 - Establish `AIProvider` abstraction with `NebiusAIProvider` and `MockAIProvider`.
@@ -39,10 +39,14 @@ Phase 7: End-to-End Evaluation & Hardening
 - Set up Next.js frontend with visual identity and health checks.
 - Establish unit, integration, and sandbox test suites.
 
-### Phase 1 — EVIDA Core Backend & Investigation Lifecycle
-- Complete state machine for investigations (`PENDING` -> `REPRODUCING` -> `INVESTIGATING` -> `PATCHING` -> `VERIFYING` -> `VERIFIED`/`UNVERIFIED`).
-- Database persistence layer using Supabase clients with transactional updates.
-- Background task dispatcher for async job processing.
+### Phase 1 — EVIDA Core Backend & Investigation Lifecycle (Completed)
+- Deterministic lifecycle state machine (`CREATED` -> `INGESTING` -> `REPRODUCING` -> `INVESTIGATING` -> `VERIFYING` -> `COMPLETED`, terminal `FAILED`).
+- Strict transition validation with deterministic structured error envelopes (`INVALID_STATE_TRANSITION`, `INVESTIGATION_ALREADY_TERMINAL`, `INVESTIGATION_NOT_FOUND`).
+- Idempotent investigation start endpoint (`POST /api/v1/investigations/{id}/start`).
+- Investigation creation (`POST /api/v1/investigations`), retrieval (`GET /api/v1/investigations/{id}`), and listing (`GET /api/v1/investigations`).
+- Append-only event timeline (`GET /api/v1/investigations/{id}/events`) with `investigation_events` Supabase schema migration and RLS.
+- Transaction-consistent persistence abstraction supporting offline testing and local development.
+- Comprehensive test coverage across state transitions, idempotency, event generation, and API lifecycle.
 
 ### Phase 2 — Repository Ingestion & Failure Reproduction
 - Git repository cloning and archive ingestion into ephemeral sandbox workspaces.

@@ -1,6 +1,6 @@
 """Investigation Domain Models
 
-Defines investigation lifecycle states, hypotheses, and response entities.
+Defines canonical investigation lifecycle states, hypotheses, events, and entity records.
 """
 
 from __future__ import annotations
@@ -14,15 +14,32 @@ from pydantic import BaseModel, Field
 
 
 class InvestigationStatus(StrEnum):
-    PENDING = "PENDING"
+    """Canonical investigation lifecycle state machine statuses."""
+
+    CREATED = "CREATED"
+    INGESTING = "INGESTING"
     REPRODUCING = "REPRODUCING"
     INVESTIGATING = "INVESTIGATING"
+    VERIFYING = "VERIFYING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
+    # Backward compatibility for Phase 0 fixtures/models
+    PENDING = "PENDING"
     HYPOTHESIZING = "HYPOTHESIZING"
     PATCHING = "PATCHING"
-    VERIFYING = "VERIFYING"
     VERIFIED = "VERIFIED"
     UNVERIFIED = "UNVERIFIED"
-    FAILED = "FAILED"
+
+
+class EventType(StrEnum):
+    """Investigation lifecycle audit event types."""
+
+    INVESTIGATION_CREATED = "INVESTIGATION_CREATED"
+    INVESTIGATION_STARTED = "INVESTIGATION_STARTED"
+    STATE_TRANSITIONED = "STATE_TRANSITIONED"
+    INVESTIGATION_COMPLETED = "INVESTIGATION_COMPLETED"
+    INVESTIGATION_FAILED = "INVESTIGATION_FAILED"
 
 
 class InvestigationHypothesis(BaseModel):
@@ -33,18 +50,27 @@ class InvestigationHypothesis(BaseModel):
     reproduction_strategy: str = Field(..., description="Proposed approach for reproduction")
 
 
-class InvestigationCreate(BaseModel):
-    repository_id: UUID
-    issue_title: str = Field(..., min_length=3, max_length=255)
-    issue_description: str | None = None
+class InvestigationEvent(BaseModel):
+    """Audit log entry for an investigation state transition or lifecycle milestone."""
 
-
-class InvestigationRead(BaseModel):
     id: UUID = Field(default_factory=uuid4)
+    investigation_id: UUID
+    event_type: str = EventType.INVESTIGATION_CREATED
+    from_status: InvestigationStatus | None = None
+    to_status: InvestigationStatus
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class Investigation(BaseModel):
+    """Core domain entity for an EVIDA software repair investigation."""
+
+    id: UUID = Field(default_factory=uuid4)
+    project_id: UUID | None = None
     repository_id: UUID
-    issue_title: str
-    issue_description: str | None = None
-    status: InvestigationStatus = InvestigationStatus.PENDING
+    title: str
+    bug_description: str | None = None
+    status: InvestigationStatus = InvestigationStatus.CREATED
     hypothesis: InvestigationHypothesis | None = None
     regression_test_code: str | None = None
     candidate_patch: str | None = None
@@ -52,7 +78,11 @@ class InvestigationRead(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
+    # Backward compatibility property for Phase 0
+    @property
+    def issue_title(self) -> str:
+        return self.title
 
-class InvestigationListResponse(BaseModel):
-    items: list[InvestigationRead]
-    total: int
+    @property
+    def issue_description(self) -> str | None:
+        return self.bug_description

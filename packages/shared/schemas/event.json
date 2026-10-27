@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "InvestigationEvent",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "investigation_id": { "type": "string", "format": "uuid" },
+    "event_type": { "type": "string" },
+    "from_status": { "type": ["string", "null"] },
+    "to_status": { "type": "string" },
+    "metadata": { "type": "object" },
+    "created_at": { "type": "string", "format": "date-time" }
+  },
+  "required": ["id", "investigation_id", "event_type", "to_status", "created_at"]
+}

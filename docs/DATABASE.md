@@ -5,7 +5,7 @@
 EVIDA uses **Supabase PostgreSQL** as its single source of truth for all persistent application state.
 
 ### Architectural Rules:
-- **No Local Application DB:** SQLite or in-memory application databases are strictly prohibited in production.
+- **No Local Application DB in Production:** Persistent state belongs exclusively in PostgreSQL.
 - **UUID Primary Keys:** All tables use `uuid_generate_v4()` for distributed key generation.
 - **Auditing Timestamps:** Every table tracks `created_at` and `updated_at` (managed via triggers).
 - **Row Level Security (RLS):** All tables enforce strict RLS policies ensuring tenant/user isolation.
@@ -13,7 +13,7 @@ EVIDA uses **Supabase PostgreSQL** as its single source of truth for all persist
 
 ---
 
-## 2. Core Entities (Phase 0 Migration)
+## 2. Core Entities
 
 ```text
   ┌──────────────┐          ┌──────────────┐
@@ -30,7 +30,13 @@ EVIDA uses **Supabase PostgreSQL** as its single source of truth for all persist
                                    │ *
                             ┌──────┴───────┐
                             │investigations│
-                            └──────────────┘
+                            └──────┬───────┘
+                                   │ 1
+                                   │
+                                   │ *
+                       ┌───────────┴──────────┐
+                       │ investigation_events │
+                       └──────────────────────┘
 ```
 
 ### 2.1 `profiles`
@@ -66,14 +72,29 @@ Tracks an autonomous repair investigation and its verification lifecycle.
 - `repository_id` (UUID, FK -> `repositories(id) ON DELETE CASCADE`)
 - `issue_title` (TEXT, NOT NULL)
 - `issue_description` (TEXT)
-- `status` (TEXT, default `'PENDING'`)
-  - Permitted values: `'PENDING'`, `'REPRODUCING'`, `'INVESTIGATING'`, `'PATCHING'`, `'VERIFYING'`, `'VERIFIED'`, `'UNVERIFIED'`, `'FAILED'`
+- `status` (TEXT, default `'CREATED'`)
+  - Permitted values: `'CREATED'`, `'INGESTING'`, `'REPRODUCING'`, `'INVESTIGATING'`, `'VERIFYING'`, `'COMPLETED'`, `'FAILED'` (and compatibility states)
 - `hypothesis` (JSONB)
 - `regression_test_code` (TEXT)
 - `candidate_patch` (TEXT)
 - `verification_evidence` (JSONB)
 - `created_at` (TIMESTAMPTZ, default `now()`)
 - `updated_at` (TIMESTAMPTZ, default `now()`)
+
+### 2.5 `investigation_events` (Added in Phase 1)
+Immutable audit ledger capturing every lifecycle state transition and milestone.
+- `id` (UUID, PK, default `uuid_generate_v4()`)
+- `investigation_id` (UUID, FK -> `investigations(id) ON DELETE CASCADE`, NOT NULL)
+- `event_type` (TEXT, NOT NULL)
+  - Values: `'INVESTIGATION_CREATED'`, `'INVESTIGATION_STARTED'`, `'STATE_TRANSITIONED'`, `'INVESTIGATION_COMPLETED'`, `'INVESTIGATION_FAILED'`
+- `from_status` (TEXT, nullable on creation)
+- `to_status` (TEXT, NOT NULL)
+- `metadata` (JSONB, default `'{}'::jsonb`)
+- `created_at` (TIMESTAMPTZ, default `now()`, NOT NULL)
+
+**Indexes:**
+- `idx_investigation_events_investigation_created`: `(investigation_id, created_at ASC)` for fast chronological timeline querying.
+- `idx_investigation_events_event_type`: `(event_type)` for event classification indexing.
 
 ---
 
@@ -84,4 +105,5 @@ Every table has RLS enabled.
 - `projects`: Users can access only projects they own (`auth.uid() = user_id`).
 - `repositories`: Users can access repositories belonging to their projects.
 - `investigations`: Users can access investigations belonging to their repositories.
-- Open policies such as `USING (true)` are prohibited.
+- `investigation_events`: Users can view and insert events only for investigations belonging to their repositories.
+- Insecure open policies (`USING (true)`) are strictly forbidden across all tables.

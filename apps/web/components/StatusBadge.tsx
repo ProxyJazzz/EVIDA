@@ -8,7 +8,12 @@ interface StatusBadgeProps {
 export function StatusBadge({ status }: StatusBadgeProps) {
   const normalized = status.toUpperCase();
 
-  if (normalized === "VERIFIED" || normalized === "OK" || normalized === "READY") {
+  if (
+    normalized === "VERIFIED" ||
+    normalized === "COMPLETED" ||
+    normalized === "OK" ||
+    normalized === "READY"
+  ) {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-semibold bg-emerald-950/60 text-emerald-400 border border-emerald-800/60">
         <CheckCircle2 className="w-3.5 h-3.5" />
@@ -26,7 +31,13 @@ export function StatusBadge({ status }: StatusBadgeProps) {
     );
   }
 
-  if (normalized === "INVESTIGATING" || normalized === "REPRODUCING" || normalized === "PATCHING" || normalized === "VERIFYING") {
+  if (
+    normalized === "INGESTING" ||
+    normalized === "INVESTIGATING" ||
+    normalized === "REPRODUCING" ||
+    normalized === "PATCHING" ||
+    normalized === "VERIFYING"
+  ) {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-semibold bg-amber-950/60 text-amber-400 border border-amber-800/60">
         <Clock className="w-3.5 h-3.5 animate-spin" />

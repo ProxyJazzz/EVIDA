@@ -20,6 +20,7 @@ from app.core.logging import (
     ctx_request_id,
     get_logger,
 )
+from app.domain.investigations.state_machine import LifecycleException
 
 logger = get_logger("evida.api")
 
@@ -125,13 +126,30 @@ def create_app() -> FastAPI:
     ) -> JSONResponse:
         req_id = ctx_request_id.get() or str(uuid.uuid4())
         return JSONResponse(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             content={
                 "error": {
                     "code": "VALIDATION_ERROR",
                     "message": "Invalid request parameters or payload.",
                     "request_id": req_id,
                     "details": exc.errors(),
+                }
+            },
+            headers={"X-Request-ID": req_id},
+        )
+
+    @application.exception_handler(LifecycleException)
+    async def lifecycle_exception_handler(
+        request: Request, exc: LifecycleException
+    ) -> JSONResponse:
+        req_id = ctx_request_id.get() or str(uuid.uuid4())
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "error": {
+                    "code": exc.code,
+                    "message": exc.message,
+                    "request_id": req_id,
                 }
             },
             headers={"X-Request-ID": req_id},

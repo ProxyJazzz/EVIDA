@@ -29,3 +29,22 @@ def test_initial_migration_exists_and_valid():
     # Disallow insecure open policies
     assert "USING (true)" not in content
     assert "WITH CHECK (true)" not in content
+
+
+def test_investigation_events_migration_exists_and_valid():
+    events_migration = (
+        PROJECT_ROOT
+        / "supabase"
+        / "migrations"
+        / "20261027010000_investigation_events.sql"
+    )
+    assert events_migration.exists(), "Events migration file must exist"
+    content = events_migration.read_text(encoding="utf-8")
+
+    assert "public.investigation_events" in content
+    assert (
+        "ALTER TABLE public.investigation_events ENABLE ROW LEVEL SECURITY;" in content
+    )
+    assert "idx_investigation_events_investigation_created" in content
+    assert "USING (true)" not in content
+    assert "WITH CHECK (true)" not in content

@@ -4,21 +4,26 @@
   "type": "object",
   "properties": {
     "id": { "type": "string", "format": "uuid" },
+    "investigation_id": { "type": "string", "format": "uuid" },
+    "project_id": { "type": ["string", "null"], "format": "uuid" },
     "repository_id": { "type": "string", "format": "uuid" },
-    "issue_title": { "type": "string" },
-    "issue_description": { "type": "string" },
+    "title": { "type": "string" },
+    "bug_description": { "type": ["string", "null"] },
     "status": {
       "type": "string",
       "enum": [
-        "PENDING",
+        "CREATED",
+        "INGESTING",
         "REPRODUCING",
         "INVESTIGATING",
+        "VERIFYING",
+        "COMPLETED",
+        "FAILED",
+        "PENDING",
         "HYPOTHESIZING",
         "PATCHING",
-        "VERIFYING",
         "VERIFIED",
-        "UNVERIFIED",
-        "FAILED"
+        "UNVERIFIED"
       ]
     },
     "hypothesis": { "type": "object" },
@@ -28,5 +33,5 @@
     "created_at": { "type": "string", "format": "date-time" },
     "updated_at": { "type": "string", "format": "date-time" }
   },
-  "required": ["id", "repository_id", "issue_title", "status"]
+  "required": ["id", "repository_id", "title", "status"]
 }

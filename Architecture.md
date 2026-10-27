@@ -109,7 +109,7 @@
 ## 3. Data Flow
 
 1. **Investigation Request:** User submits repository reference and issue description via Web UI to FastAPI backend.
-2. **Persistence:** Backend writes `PENDING` investigation record to Supabase.
+2. **Persistence:** Backend writes `CREATED` investigation record and `INVESTIGATION_CREATED` event to Supabase.
 3. **Reproduction in Sandbox:** Sandbox runs existing test suite or repro script to confirm initial failure state.
 4. **AI Reasoning:** Backend prompts Nebius Token Factory (NVIDIA model) with structured reproduction evidence to produce a causal hypothesis and regression test candidate.
 5. **Verification of Regression Test:** Sandbox executes regression test against baseline code; it *must* fail (negative proof).
@@ -118,4 +118,33 @@
    - Regression test (must now PASS).
    - Full repository test suite (must remain PASS).
 8. **Evidence Bundle:** Execution outputs, diffs, timing, and exit codes are recorded in Supabase.
-9. **Review UI:** User reviews the verified evidence trail and marks the fix `VERIFIED`.
+9. **Review UI:** User reviews the verified evidence trail and marks the fix `COMPLETED` or `FAILED`.
+
+---
+
+## 4. Deterministic Investigation Lifecycle (Phase 1)
+
+```text
+    CREATED
+       │
+       ▼
+   INGESTING
+       │
+       ▼
+  REPRODUCING
+       │
+       ▼
+ INVESTIGATING  ──► (Any Active State) ──► FAILED (Terminal)
+       │
+       ▼
+   VERIFYING
+       │
+       ▼
+   COMPLETED (Terminal)
+```
+
+### 4.1 State Machine Rules
+- **Explicit Transitions Only:** States can only advance forward sequentially (`CREATED` -> `INGESTING` -> `REPRODUCING` -> `INVESTIGATING` -> `VERIFYING` -> `COMPLETED`).
+- **Terminal Guarantees:** Once in `COMPLETED` or `FAILED`, no further transitions are allowed.
+- **Idempotency:** Repeated calls to `/start` on an already active investigation safely return the current state without state resets or duplicate events.
+- **Immutable Audit Events:** Every state transition automatically creates an append-only `investigation_events` entry with `from_status`, `to_status`, `event_type`, and timestamp.

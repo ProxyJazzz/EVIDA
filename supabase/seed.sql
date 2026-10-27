@@ -53,10 +53,29 @@ VALUES (
   '22222222-2222-2222-2222-222222222222',
   'Fix ZeroDivisionError in calculation endpoint',
   'When input denominator is 0, endpoint raises unhandled 500 ZeroDivisionError instead of returning 400 Bad Request.',
-  'PENDING',
+  'CREATED',
   '{"summary": "Zero check missing in calculate() method.", "confidence": 0.95}'::jsonb,
   NULL,
   NULL,
   NULL
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- Seed Investigation Event
+INSERT INTO public.investigation_events (
+  id,
+  investigation_id,
+  event_type,
+  from_status,
+  to_status,
+  metadata
+)
+VALUES (
+  '44444444-4444-4444-4444-444444444444',
+  '33333333-3333-3333-3333-333333333333',
+  'INVESTIGATION_CREATED',
+  NULL,
+  'CREATED',
+  '{"source": "seed_data"}'::jsonb
 )
 ON CONFLICT (id) DO NOTHING;
