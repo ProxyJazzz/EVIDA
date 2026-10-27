@@ -19,12 +19,17 @@ from app.domain.investigations.models import (
     InvestigationEvent,
     InvestigationStatus,
 )
+from app.domain.repositories.models import (
+    Repository,
+    RepositoryStatus,
+    ReproductionRun,
+)
 
 logger = get_logger("evida.investigations.repository")
 
 
 class InvestigationRepository(Protocol):
-    """Protocol defining persistence operations for investigations and lifecycle events."""
+    """Protocol defining persistence operations for investigations, archives, and reproduction runs."""
 
     async def get_by_id(self, investigation_id: UUID) -> Investigation | None:
         """Fetch investigation by UUID."""
@@ -53,6 +58,37 @@ class InvestigationRepository(Protocol):
         """Fetch chronological timeline of lifecycle events for an investigation."""
         ...
 
+    async def record_event(self, investigation_id: UUID, event: InvestigationEvent) -> None:
+        """Append an audit event to the investigation timeline."""
+        ...
+
+    # Phase 2: Repository and Reproduction Persistence
+    async def save_repository(self, repository: Repository) -> Repository:
+        """Persist or update repository archive metadata."""
+        ...
+
+    async def get_repository_by_investigation_id(self, investigation_id: UUID) -> Repository | None:
+        """Retrieve repository metadata associated with an investigation."""
+        ...
+
+    async def save_reproduction_run(self, run: ReproductionRun) -> ReproductionRun:
+        """Persist or update a reproduction execution run."""
+        ...
+
+    async def get_reproduction_run_by_investigation_id(
+        self, investigation_id: UUID
+    ) -> ReproductionRun | None:
+        """Retrieve latest reproduction run for an investigation."""
+        ...
+
+    async def save_archive_bytes(self, storage_path: str, data: bytes) -> None:
+        """Store raw repository archive payload."""
+        ...
+
+    async def get_archive_bytes(self, storage_path: str) -> bytes | None:
+        """Retrieve raw repository archive payload."""
+        ...
+
 
 class InMemoryInvestigationRepository:
     """Thread-safe, transaction-consistent in-memory repository for local dev and testing."""
@@ -61,6 +97,10 @@ class InMemoryInvestigationRepository:
         self._lock = asyncio.Lock()
         self._investigations: dict[UUID, Investigation] = {}
         self._events: dict[UUID, list[InvestigationEvent]] = {}
+        self._repositories: dict[UUID, Repository] = {}  # keyed by investigation_id
+        self._repositories_by_id: dict[UUID, Repository] = {}
+        self._reproduction_runs: dict[UUID, list[ReproductionRun]] = {}  # keyed by investigation_id
+        self._archives: dict[str, bytes] = {}
         self._seed_default_data()
 
     def _seed_default_data(self) -> None:
@@ -96,6 +136,21 @@ class InMemoryInvestigationRepository:
         )
         self._events[demo_id] = [demo_event]
 
+        demo_repo = Repository(
+            id=repo_id,
+            investigation_id=demo_id,
+            project_id=proj_id,
+            name="demo-service.zip",
+            storage_path="archives/33333333-3333-3333-3333-333333333333/demo-service.zip",
+            archive_size_bytes=1024,
+            archive_sha256="0000000000000000000000000000000000000000000000000000000000000000",
+            status=RepositoryStatus.READY,
+            created_at=now,
+            updated_at=now,
+        )
+        self._repositories[demo_id] = demo_repo
+        self._repositories_by_id[repo_id] = demo_repo
+
     async def get_by_id(self, investigation_id: UUID) -> Investigation | None:
         async with self._lock:
             inv = self._investigations.get(investigation_id)
@@ -128,11 +183,9 @@ class InMemoryInvestigationRepository:
             if inv is None:
                 raise KeyError(f"Investigation {investigation_id} does not exist.")
 
-            # Update entity state
             inv.status = new_status
             inv.updated_at = datetime.now(UTC)
 
-            # Record event
             if investigation_id not in self._events:
                 self._events[investigation_id] = []
             self._events[investigation_id].append(event.model_copy())
@@ -142,11 +195,62 @@ class InMemoryInvestigationRepository:
     async def get_events(self, investigation_id: UUID) -> list[InvestigationEvent]:
         async with self._lock:
             events = self._events.get(investigation_id, [])
-            # Return chronologically ordered list
             return sorted(events, key=lambda e: e.created_at)
 
+    async def record_event(self, investigation_id: UUID, event: InvestigationEvent) -> None:
+        async with self._lock:
+            if investigation_id not in self._events:
+                self._events[investigation_id] = []
+            self._events[investigation_id].append(event.model_copy())
 
-# Global singleton instance for in-memory persistence during application lifetime
+    async def save_repository(self, repository: Repository) -> Repository:
+        async with self._lock:
+            if repository.investigation_id is not None:
+                self._repositories[repository.investigation_id] = repository.model_copy()
+            self._repositories_by_id[repository.id] = repository.model_copy()
+            return repository.model_copy()
+
+    async def get_repository_by_investigation_id(self, investigation_id: UUID) -> Repository | None:
+        async with self._lock:
+            repo = self._repositories.get(investigation_id)
+            if repo is None:
+                return None
+            return repo.model_copy()
+
+    async def save_reproduction_run(self, run: ReproductionRun) -> ReproductionRun:
+        async with self._lock:
+            if run.investigation_id not in self._reproduction_runs:
+                self._reproduction_runs[run.investigation_id] = []
+            # Replace if already exists with same ID, otherwise append
+            existing = [r for r in self._reproduction_runs[run.investigation_id] if r.id == run.id]
+            if existing:
+                self._reproduction_runs[run.investigation_id] = [
+                    run.model_copy() if r.id == run.id else r
+                    for r in self._reproduction_runs[run.investigation_id]
+                ]
+            else:
+                self._reproduction_runs[run.investigation_id].append(run.model_copy())
+            return run.model_copy()
+
+    async def get_reproduction_run_by_investigation_id(
+        self, investigation_id: UUID
+    ) -> ReproductionRun | None:
+        async with self._lock:
+            runs = self._reproduction_runs.get(investigation_id, [])
+            if not runs:
+                return None
+            # Return latest run
+            return runs[-1].model_copy()
+
+    async def save_archive_bytes(self, storage_path: str, data: bytes) -> None:
+        async with self._lock:
+            self._archives[storage_path] = data
+
+    async def get_archive_bytes(self, storage_path: str) -> bytes | None:
+        async with self._lock:
+            return self._archives.get(storage_path)
+
+
 _memory_repo_instance: InMemoryInvestigationRepository | None = None
 
 

@@ -11,6 +11,7 @@ from app.core.config import Settings, get_settings
 from app.core.security import get_current_user_id
 from app.domain.investigations.repository import get_investigation_repository
 from app.domain.investigations.service import InvestigationService
+from app.domain.repositories.reproduction_service import ReproductionService
 from app.services.supabase import SupabaseClientService
 
 SettingsDep = Annotated[Settings, Depends(get_settings)]
@@ -43,3 +44,14 @@ def get_investigation_service_dep(settings: SettingsDep) -> InvestigationService
 
 
 InvestigationServiceDep = Annotated[InvestigationService, Depends(get_investigation_service_dep)]
+
+
+def get_reproduction_service_dep(
+    settings: SettingsDep,
+    investigation_service: InvestigationServiceDep,
+) -> ReproductionService:
+    repo = get_investigation_repository(settings)
+    return ReproductionService(repo, investigation_service, settings)
+
+
+ReproductionServiceDep = Annotated[ReproductionService, Depends(get_reproduction_service_dep)]

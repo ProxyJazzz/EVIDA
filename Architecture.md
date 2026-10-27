@@ -148,3 +148,67 @@
 - **Terminal Guarantees:** Once in `COMPLETED` or `FAILED`, no further transitions are allowed.
 - **Idempotency:** Repeated calls to `/start` on an already active investigation safely return the current state without state resets or duplicate events.
 - **Immutable Audit Events:** Every state transition automatically creates an append-only `investigation_events` entry with `from_status`, `to_status`, `event_type`, and timestamp.
+
+---
+
+## 5. Repository Ingestion & Failure Reproduction Pipeline (Phase 2)
+
+```text
+Repository ZIP Archive
+        │
+        ▼
+Archive Validation & Security Gates
+  ├── SHA-256 Digest Computation
+  ├── Path Traversal & Absolute Path Rejection
+  ├── Archive & Single-File Size Boundaries
+  └── File Count & Compression Ratio Enforcement
+        │
+        ▼
+Ephemeral Workspace Setup (Isolated Temp Directory)
+  ├── Canonical Path Extraction (No extractall() blind calls)
+  └── Deterministic Root Detection (Nested vs Flat layouts)
+        │
+        ▼
+Reproduction Command Validation
+  ├── Untrusted Input Sanitization (No shell=True)
+  ├── Shell Metacharacter Blocking (; & | ` $ < > { })
+  └── Permitted Toolchain Whitelist (pytest, python, python3)
+        │
+        ▼
+Isolated Sandbox Runner Execution
+  ├── Process Environment Sanitization (Secrets Scrubbed)
+  ├── Hard Wall-Clock Timeout Enforcement
+  ├── stdout/stderr Size Truncation (Max 1MB)
+  └── Exit Code & Duration Capture
+        │
+        ▼
+Objective Reproduction Verdict Classification
+  ├── Exit Code > 0  ──► REPRODUCED (Defect Reproduced)
+  ├── Exit Code == 0 ──► NOT_REPRODUCED (Tests Passed)
+  ├── Timed Out      ──► TIMEOUT (Exceeded Bounded Time)
+  └── Sandbox Error  ──► EXECUTION_ERROR / POLICY_BLOCKED
+        │
+        ▼
+Evidence Persistence & Audit Ledger
+  ├── Append-only reproduction_runs persistence
+  └── Investigation Audit Event Emitted
+```
+
+### 5.1 The Execution Boundary Invariant
+Untrusted repository code **never executes inside the FastAPI process**.
+1. FastAPI acts strictly as an orchestrator and policy enforcer.
+2. The sandbox harness (`sandbox/runner/runner.py`) spawns subprocesses with sanitized environments, stripped of all system and cloud credentials.
+3. Every execution takes place in an ephemeral directory that is destroyed immediately after evidence collection.
+
+### 5.2 Deterministic Reproduction Semantics
+A command executing with an exit code of 0 does **not** mean the bug was reproduced. In Phase 2:
+- Non-zero exit code (`> 0`) from a reproduction test confirms that the failure was reproduced (`REPRODUCED`).
+- Zero exit code (`== 0`) indicates that the test passed without reproducing the defect (`NOT_REPRODUCED`).
+- Timeouts yield `TIMEOUT`.
+
+### 5.3 Intentional AI Boundary
+AI models (Nebius / NVIDIA) are **intentionally not invoked during Phase 2**.
+- Phase 2 establishes **what happened** through deterministic execution evidence.
+- Phase 4 will introduce AI to answer **why it happened** and propose candidate fixes.
+- This decoupling prevents hallucinated reproduction verdicts and guarantees that evidence alone drives the repair pipeline.
+

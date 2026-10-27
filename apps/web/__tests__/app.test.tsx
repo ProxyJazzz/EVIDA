@@ -33,6 +33,9 @@ global.fetch = vi.fn().mockImplementation((url: string) => {
   });
 });
 
+import DashboardPage from "@/app/dashboard/page";
+import InvestigationPage from "@/app/investigations/[id]/page";
+
 describe("Frontend Foundation Tests", () => {
   it("renders the landing page with EVIDA core identity and maxim", () => {
     render(<HomePage />);
@@ -44,5 +47,22 @@ describe("Frontend Foundation Tests", () => {
     render(<HealthPage />);
     expect(screen.getByText(/System Health & Readiness/i)).toBeDefined();
     expect(screen.getByText(/Frontend Web Client/i)).toBeDefined();
+  });
+
+  it("renders the dashboard page with Phase 2 investigation ledger", () => {
+    render(<DashboardPage />);
+    expect(screen.getByText(/Repair Investigations Dashboard/i)).toBeDefined();
+    expect(screen.getByText(/broken_python_repo.zip/i)).toBeDefined();
+    expect(screen.getByText(/Phase 2 Pipeline Active/i)).toBeDefined();
+  });
+
+  it("renders the Phase 2 investigation detail view with repository and reproduction evidence", async () => {
+    const Component = await InvestigationPage({ params: { id: "33333333-3333-3333-3333-333333333333" } });
+    render(Component);
+    expect(screen.getByText(/Investigation #33333333/i)).toBeDefined();
+    expect(screen.getByText(/Repository Archive/i)).toBeDefined();
+    expect(screen.getByText(/Failure Reproduction/i)).toBeDefined();
+    expect(screen.getByText(/REPRODUCTION_RESULT/i)).toBeDefined();
+    expect(screen.getByText(/pytest tests\/test_bug\.py/i)).toBeDefined();
   });
 });

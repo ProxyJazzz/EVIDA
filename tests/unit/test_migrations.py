@@ -48,3 +48,21 @@ def test_investigation_events_migration_exists_and_valid():
     assert "idx_investigation_events_investigation_created" in content
     assert "USING (true)" not in content
     assert "WITH CHECK (true)" not in content
+
+
+def test_repository_and_reproduction_migration_exists_and_valid():
+    repo_migration = (
+        PROJECT_ROOT
+        / "supabase"
+        / "migrations"
+        / "20261027020000_repository_and_reproduction.sql"
+    )
+    assert repo_migration.exists(), "Phase 2 repository migration file must exist"
+    content = repo_migration.read_text(encoding="utf-8")
+
+    assert "public.reproduction_runs" in content
+    assert "ALTER TABLE public.reproduction_runs ENABLE ROW LEVEL SECURITY;" in content
+    assert "idx_reproduction_runs_investigation_created" in content
+    assert "idx_repositories_investigation_id" in content
+    assert "USING (true)" not in content
+    assert "WITH CHECK (true)" not in content

@@ -83,3 +83,7 @@ Thumbs.db
 # Supabase local generated (keep migrations!)
 supabase/.branches
 supabase/.temp
+
+# EVIDA local file storage
+.evida_storage/
+

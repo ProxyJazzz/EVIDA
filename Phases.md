@@ -48,10 +48,24 @@ Phase 7: End-to-End Evaluation & Hardening
 - Transaction-consistent persistence abstraction supporting offline testing and local development.
 - Comprehensive test coverage across state transitions, idempotency, event generation, and API lifecycle.
 
-### Phase 2 — Repository Ingestion & Failure Reproduction
-- Git repository cloning and archive ingestion into ephemeral sandbox workspaces.
-- Test runner discovery (pytest, jest, go test, cargo test).
-- Baseline execution to confirm clean test suite or reproduce target issue.
+### Phase 2 — Repository Ingestion & Failure Reproduction (Completed)
+- Secure ZIP repository ingestion with defense-in-depth archive validation.
+- Path traversal and absolute path blocking (zero blind `extractall()`).
+- Archive size, extracted size, single-file size, and file count limits in configuration.
+- SHA-256 digest generation and persistence for artifact provenance.
+- Deterministic repository root detection (handling nested package roots and flat roots).
+- Untrusted reproduction command validation (no `shell=True`, metacharacter blocking, whitelist for `pytest`/`python`).
+- Ephemeral workspace extraction and isolated execution boundary via `sandbox/runner/runner.py`.
+- Objective reproduction verdict classification (`REPRODUCED`, `NOT_REPRODUCED`, `TIMEOUT`, `EXECUTION_ERROR`, `POLICY_BLOCKED`).
+- Idempotent execution and append-only evidence persistence in `reproduction_runs` with Supabase migration and RLS.
+- Investigation state integration: transitions from `CREATED` -> `INGESTING` -> `REPRODUCING`.
+- Standard REST API endpoints:
+  - `POST /api/v1/investigations/{id}/repository`
+  - `GET /api/v1/investigations/{id}/repository`
+  - `POST /api/v1/investigations/{id}/reproduce`
+  - `GET /api/v1/investigations/{id}/reproduction`
+- Minimal frontend UI displaying repository metadata, reproduction execution evidence, stdout/stderr, and lifecycle timeline.
+- Comprehensive unit and integration test suite with deterministic broken and passing repo fixtures.
 
 ### Phase 3 — AI Investigation & Hypothesis Engine
 - Investigation prompt templates with AST extraction and failure log summarization.

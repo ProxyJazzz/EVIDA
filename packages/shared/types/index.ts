@@ -140,3 +140,51 @@ export interface APIErrorResponse {
     details?: unknown;
   };
 }
+
+export type RepositoryStatus =
+  | "UPLOADED"
+  | "VALIDATING"
+  | "VALIDATED"
+  | "EXTRACTING"
+  | "READY"
+  | "FAILED";
+
+export type ReproductionStatus =
+  | "PENDING"
+  | "RUNNING"
+  | "REPRODUCED"
+  | "NOT_REPRODUCED"
+  | "TIMEOUT"
+  | "EXECUTION_ERROR"
+  | "POLICY_BLOCKED";
+
+export interface RepositoryMetadata {
+  id: string;
+  investigation_id?: string | null;
+  name: string;
+  archive_size_bytes: number;
+  archive_sha256: string;
+  status: RepositoryStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReproductionRun {
+  id: string;
+  investigation_id: string;
+  repository_id: string;
+  command: string;
+  status: ReproductionStatus;
+  exit_code?: number | null;
+  stdout: string;
+  stderr: string;
+  duration_ms?: number | null;
+  timed_out: boolean;
+  created_at: string;
+  completed_at?: string | null;
+}
+
+export interface ReproductionRequest {
+  command: string;
+}
+

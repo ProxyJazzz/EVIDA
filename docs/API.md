@@ -222,3 +222,100 @@ Lists all investigations for the authenticated user/tenant.
   "total": 1
 }
 ```
+
+---
+
+### 3.3 Phase 2 Repository Ingestion & Reproduction Endpoints
+
+#### Upload Repository Archive
+`POST /api/v1/investigations/{investigation_id}/repository`
+
+Uploads and validates a ZIP repository archive. Enforces path traversal checks, file size limits, and file count limits. On success, transitions investigation state from `CREATED` to `INGESTING`.
+
+**Request:** `multipart/form-data`
+- `file`: ZIP archive payload (`.zip`)
+
+**Response (201 Created):**
+```json
+{
+  "id": "22222222-2222-2222-2222-222222222222",
+  "investigation_id": "33333333-3333-3333-3333-333333333333",
+  "name": "broken-project.zip",
+  "archive_size_bytes": 1048576,
+  "archive_sha256": "fa4aec473a843aa4d3a2df0840c192a2e28526c6f5d146b0ae7b7fabaf5280a9",
+  "status": "READY",
+  "created_at": "2026-10-27T16:05:00Z",
+  "updated_at": "2026-10-27T16:05:00Z"
+}
+```
+
+---
+
+#### Get Repository Metadata
+`GET /api/v1/investigations/{investigation_id}/repository`
+
+Retrieves the archive metadata, SHA-256 digest, and validation status of the attached repository.
+
+**Response (200 OK):**
+```json
+{
+  "id": "22222222-2222-2222-2222-222222222222",
+  "investigation_id": "33333333-3333-3333-3333-333333333333",
+  "name": "broken-project.zip",
+  "archive_size_bytes": 1048576,
+  "archive_sha256": "fa4aec473a843aa4d3a2df0840c192a2e28526c6f5d146b0ae7b7fabaf5280a9",
+  "status": "READY",
+  "created_at": "2026-10-27T16:05:00Z",
+  "updated_at": "2026-10-27T16:05:00Z"
+}
+```
+
+---
+
+#### Execute Failure Reproduction
+`POST /api/v1/investigations/{investigation_id}/reproduce`
+
+Extracts the validated repository archive into an ephemeral workspace, validates the reproduction command against security policy, executes it in the isolated sandbox, captures objective execution telemetry, classifies the verdict, and transitions the investigation to `REPRODUCING`.
+
+**Request Body:**
+```json
+{
+  "command": "pytest tests/test_bug.py"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "id": "77777777-7777-7777-7777-777777777777",
+  "investigation_id": "33333333-3333-3333-3333-333333333333",
+  "repository_id": "22222222-2222-2222-2222-222222222222",
+  "command": "pytest tests/test_bug.py",
+  "status": "REPRODUCED",
+  "exit_code": 1,
+  "stdout": "============================= test session starts ==============================\nFAILED tests/test_bug.py::test_divide_bug - assert 20 == 5\n============================== 1 failed in 0.12s ===============================",
+  "stderr": "",
+  "duration_ms": 124,
+  "timed_out": false,
+  "created_at": "2026-10-27T16:06:00Z",
+  "completed_at": "2026-10-27T16:06:01Z"
+}
+```
+
+**Reproduction Verdict Semantics:**
+- `REPRODUCED`: Exit code > 0 (reproduction test demonstrated failure).
+- `NOT_REPRODUCED`: Exit code == 0 (test passed without defect).
+- `TIMEOUT`: Execution exceeded hard wall-clock timeout.
+- `EXECUTION_ERROR`: Sandbox execution setup failed.
+- `POLICY_BLOCKED`: Command violated security restrictions.
+
+---
+
+#### Get Reproduction Result
+`GET /api/v1/investigations/{investigation_id}/reproduction`
+
+Retrieves the latest objective reproduction run execution telemetry and verdict for an investigation.
+
+**Response (200 OK):**
+Same as `POST /reproduce` response body.
+

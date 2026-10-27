@@ -52,6 +52,11 @@ def sanitize_environment() -> dict[str, str]:
 
     clean_env["EVIDA_SANDBOX"] = "1"
     clean_env["PYTHONUNBUFFERED"] = "1"
+    # Ensure current Python environment tools (like pytest) are discovered
+    venv_bin = str(sys.executable.rsplit("/", 1)[0]) if "/" in sys.executable else ""
+    current_path = clean_env.get("PATH", "")
+    if venv_bin:
+        clean_env["PATH"] = f"{venv_bin}:{current_path}" if current_path else venv_bin
     return clean_env
 
 

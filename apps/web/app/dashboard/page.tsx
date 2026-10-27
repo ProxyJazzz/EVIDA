@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ShieldCheck, Plus, Terminal, Clock, FolderGit2, AlertCircle } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 
@@ -59,29 +60,32 @@ export default function DashboardPage() {
         </div>
 
         <div className="divide-y divide-surface-border">
-          <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-surface/60 transition-colors">
+          <Link
+            href="/investigations/33333333-3333-3333-3333-333333333333"
+            className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-surface/60 transition-colors block"
+          >
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="font-mono text-xs text-gray-400">#INV-0001</span>
-                <h3 className="font-semibold text-white text-sm">
-                  Fix ZeroDivisionError in calculation endpoint
+                <h3 className="font-semibold text-white text-sm hover:text-emerald-400 transition-colors">
+                  Fix calculator division bug
                 </h3>
               </div>
               <p className="text-xs text-gray-400">
-                Target Repo: <span className="font-mono text-gray-300">evida-ai/demo-service</span>
+                Target Repo: <span className="font-mono text-gray-300">broken_python_repo.zip</span>
               </p>
             </div>
             <div className="flex items-center gap-4">
-              <StatusBadge status="CREATED" />
-              <span className="text-xs text-gray-500 font-mono">Ready for Phase 1</span>
+              <StatusBadge status="REPRODUCING" />
+              <span className="text-xs text-emerald-400 font-mono">View Phase 2 Evidence &rarr;</span>
             </div>
-          </div>
+          </Link>
         </div>
 
         <div className="p-4 bg-background/50 border-t border-surface-border flex items-center gap-2 text-xs text-gray-400">
-          <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+          <AlertCircle className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>
-            Phase 0 Foundation Active: Repositories and investigations are configured via Supabase schema and FastAPI contracts.
+            Phase 2 Pipeline Active: Repository ZIP ingestion, isolated sandbox reproduction, and objective failure evidence persisted.
           </span>
         </div>
       </div>

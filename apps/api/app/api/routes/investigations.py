@@ -2,16 +2,26 @@
 
 from __future__ import annotations
 
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, File, UploadFile, status
 
-from app.api.dependencies import InvestigationServiceDep, UserIdDep
+from app.api.dependencies import (
+    InvestigationServiceDep,
+    ReproductionServiceDep,
+    UserIdDep,
+)
 from app.domain.investigations.schemas import (
     InvestigationCreate,
     InvestigationEventsResponse,
     InvestigationListResponse,
     InvestigationResponse,
+)
+from app.domain.repositories.models import (
+    RepositoryResponse,
+    ReproductionRequest,
+    ReproductionRunResponse,
 )
 
 router = APIRouter(prefix="/investigations", tags=["Investigations"])
@@ -86,3 +96,67 @@ async def get_investigation_events(
 ) -> InvestigationEventsResponse:
     """Retrieve chronologically ordered lifecycle events and audit trail."""
     return await service.get_events(investigation_id)
+
+
+@router.post(
+    "/{investigation_id}/repository",
+    response_model=RepositoryResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Upload and ingest repository archive for investigation",
+)
+async def upload_repository(
+    investigation_id: UUID,
+    service: ReproductionServiceDep,
+    file: Annotated[UploadFile, File()],
+) -> RepositoryResponse:
+    """Securely upload and validate a repository ZIP archive, advancing state to INGESTING."""
+    content = await file.read()
+    filename = file.filename or "repository.zip"
+    return await service.ingest_repository_archive(
+        investigation_id=investigation_id,
+        filename=filename,
+        content=content,
+    )
+
+
+@router.get(
+    "/{investigation_id}/repository",
+    response_model=RepositoryResponse,
+    summary="Get repository metadata for investigation",
+)
+async def get_repository(
+    investigation_id: UUID,
+    service: ReproductionServiceDep,
+) -> RepositoryResponse:
+    """Retrieve metadata and security verification status for the attached repository archive."""
+    return await service.get_repository(investigation_id)
+
+
+@router.post(
+    "/{investigation_id}/reproduce",
+    response_model=ReproductionRunResponse,
+    summary="Execute failure reproduction in isolated sandbox",
+)
+async def reproduce_failure(
+    investigation_id: UUID,
+    payload: ReproductionRequest,
+    service: ReproductionServiceDep,
+) -> ReproductionRunResponse:
+    """Safely execute the reproduction command within an ephemeral workspace and capture evidence."""
+    return await service.reproduce_failure(
+        investigation_id=investigation_id,
+        command=payload.command,
+    )
+
+
+@router.get(
+    "/{investigation_id}/reproduction",
+    response_model=ReproductionRunResponse,
+    summary="Get latest reproduction run result",
+)
+async def get_reproduction(
+    investigation_id: UUID,
+    service: ReproductionServiceDep,
+) -> ReproductionRunResponse:
+    """Retrieve the latest objective reproduction run execution evidence and verdict."""
+    return await service.get_reproduction(investigation_id)

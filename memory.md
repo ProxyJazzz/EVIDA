@@ -1,14 +1,14 @@
 # EVIDA — Project Memory & Implementation Ledger
 
 ## Current Status
-- **Phase:** Phase 1 — EVIDA Core Backend / Investigation Lifecycle
-- **Status:** COMPLETED
+- **Phase:** Phase 2 — Repository Ingestion & Failure Reproduction
+- **Status:** COMPLETED & VERIFIED
 - **Last Updated:** 2026-10-27
 
 ---
 
 ## Current Objective
-Phase 1 core investigation lifecycle foundation is fully implemented and verified. Standing by for Phase 2 (Repository Ingestion & Failure Reproduction).
+Phase 2 repository ingestion and failure reproduction pipeline is fully implemented and verified. Standing by for Phase 3 (AI Investigation & Hypothesis Engine).
 
 ---
 
@@ -31,16 +31,28 @@ Phase 1 core investigation lifecycle foundation is fully implemented and verifie
 - [x] **Chronological Event Timeline (`GET /api/v1/investigations/{id}/events`):** Ordered event history emitted on creation and state transitions.
 - [x] **Database Migration (`supabase/migrations/20261027010000_investigation_events.sql`):** Added `investigation_events` table with index `(investigation_id, created_at ASC)` and RLS policies; updated `investigations` status constraints.
 - [x] **Persistence Abstraction:** Protocol-based repository with transaction-consistent in-memory storage for offline development/testing and Supabase integration.
-- [x] **Automated Validation:** 57 backend tests passing, frontend tests passing, Ruff lint/format clean, Mypy strict type checking clean.
+
+### Phase 2 — Repository Ingestion & Failure Reproduction
+- [x] **Database Migration (`supabase/migrations/20261027020000_repository_and_reproduction.sql`):** Added Phase 2 fields to `repositories` (`investigation_id`, `storage_path`, `archive_size_bytes`, `archive_sha256`, `status`) and created `reproduction_runs` table with foreign keys, compound indexes, and RLS policies (no open `USING (true)`).
+- [x] **ZIP Security & Archive Validation (`apps/api/app/domain/repositories/archive_validator.py`):** Rejects path traversals (`..`), absolute paths (`/`), symlink escaping, oversized archives, file counts exceeding boundary; computes deterministic SHA-256 digest; extracts safely without blind `extractall()`.
+- [x] **Deterministic Root Detection:** Detects repository root for both nested package directories and flat layouts.
+- [x] **Reproduction Command Validation (`apps/api/app/domain/repositories/command_validator.py`):** Blocks shell metacharacters (`;`, `&`, `|`, `` ` ``, `$`, `(`, `)`, `<`, `>`, `{`, `}`), non-whitelisted executables (`rm`, `bash`, `curl`, `wget`), and arbitrary inline python (`-c`).
+- [x] **Isolated Sandbox Execution (`apps/api/app/domain/repositories/reproduction_service.py` & `sandbox/runner/runner.py`):** Ephemeral workspace creation and teardown; secret environment scrubbing; hard timeouts (30s); output truncation; exit code and duration capture.
+- [x] **Objective Reproduction Verdict Semantics:** `exit_code > 0` => `REPRODUCED`; `exit_code == 0` => `NOT_REPRODUCED`; timeout => `TIMEOUT`; sandbox error => `EXECUTION_ERROR`; disallowed command => `POLICY_BLOCKED`.
+- [x] **Investigation Lifecycle Integration:** Ingestion moves `CREATED` -> `INGESTING`; reproduction start moves `INGESTING` -> `REPRODUCING`; lifecycle stops at `REPRODUCING` for Phase 2.
+- [x] **Idempotency:** Repeated reproduction requests return the existing run without duplicate execution unless explicitly forced.
+- [x] **REST API Endpoints:** `POST /{id}/repository`, `GET /{id}/repository`, `POST /{id}/reproduce`, `GET /{id}/reproduction`.
+- [x] **Frontend Integration:** Added investigation detail view (`apps/web/app/investigations/[id]/page.tsx`) rendering repository metadata, reproduction execution evidence, stdout/stderr blocks, and lifecycle timeline.
+- [x] **Automated Validation:** 96 backend tests passing, 4 frontend tests passing, Ruff lint/format clean, Mypy strict type checking clean, sandbox validation passing.
 
 ---
 
 ## Next Steps
-- Await instruction to start **Phase 2 — Repository Ingestion & Failure Reproduction**.
-- Do not begin Phase 2 until instructed.
+- Await instruction to start **Phase 3 — AI Investigation & Hypothesis Engine (Nebius + NVIDIA)**.
+- Do not begin Phase 3 until instructed.
 
 ---
 
 ## Known Issues & Notes
-- Live Nebius API calls require an active `NEBIUS_API_KEY`; unit tests use `MockAIProvider` for 100% offline test reliability.
-- Live Supabase operations require an active instance; schema migrations are packaged in standard SQL with Supabase CLI configuration.
+- Untrusted repository code never executes inside the FastAPI process; all execution occurs via the ephemeral sandbox runner.
+- Live Nebius API calls require an active `NEBIUS_API_KEY`; AI models are intentionally not called in Phase 2 to maintain deterministic reproduction proofs.

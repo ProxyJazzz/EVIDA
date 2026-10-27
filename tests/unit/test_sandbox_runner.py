@@ -39,3 +39,13 @@ def test_sandbox_environment_sanitization():
     assert clean_env.get("EVIDA_SANDBOX") == "1"
     assert "NEBIUS_API_KEY" not in clean_env
     assert "SUPABASE_SERVICE_ROLE_KEY" not in clean_env
+
+
+def test_sandbox_output_truncation():
+    # Print > 1MB of text
+    result = execute_command(
+        "python3 -c \"print('A' * (1024 * 1024 + 500))\"",
+        timeout_seconds=10.0,
+    )
+    assert result.exit_code == 0
+    assert "[OUTPUT TRUNCATED: Exceeded 1MB limit]" in result.stdout

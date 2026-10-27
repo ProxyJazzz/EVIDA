@@ -56,3 +56,35 @@ All log records are structured JSON. The logging pipeline includes an automatic 
 - Nebius API keys
 - Supabase service role keys
 - Repository tokens
+
+---
+
+## 5. Phase 2 ZIP Ingestion & Reproduction Security Model
+
+### 5.1 Archive Verification Boundary
+Uploaded repository archives represent untrusted binary input. The system enforces strict security gates prior to any disk extraction:
+1. **No Blind `extractall()`:** Standard Python `extractall()` is strictly forbidden due to Zip Slip vulnerabilities.
+2. **Path Traversal Defense:** All archive entry names are analyzed. Any entry containing `../`, `..\\`, or relative navigation escaping the destination root is immediately rejected with `400 INVALID_ARCHIVE`.
+3. **Absolute Path Blocking:** Any entry starting with `/` or drive specifications (e.g. `C:\`) is immediately rejected.
+4. **Symlink Containment:** Symlinks that point outside the ephemeral extraction directory are blocked.
+5. **Resource Boundaries:**
+   - Maximum archive size: `MAX_ARCHIVE_SIZE_MB` (default 50 MB)
+   - Maximum uncompressed size: `MAX_EXTRACTED_SIZE_MB` (default 200 MB)
+   - Maximum file count: `MAX_FILE_COUNT` (default 5,000 files)
+   - Maximum single-file size: `MAX_SINGLE_FILE_SIZE_MB` (default 20 MB)
+6. **Integrity Digest:** SHA-256 digest is computed on the raw archive bytes and persisted to guarantee artifact provenance.
+
+### 5.2 Ephemeral Workspace Lifecycle
+Extraction and reproduction execute inside temporary ephemeral workspaces created via `tempfile.TemporaryDirectory`.
+- The workspace directory is created with restrictive permissions.
+- Repository root is detected deterministically (supporting nested directory packages or flat roots).
+- The directory and all extracted files are wiped from the host immediately upon execution completion.
+
+### 5.3 Untrusted Reproduction Command Execution
+1. **Never `shell=True`:** Reproduction commands are parsed into structured argument vectors (`shlex.split`) and passed directly as argument lists to `subprocess.Popen`.
+2. **Disallowed Shell Metacharacters:** Shell control operators (`;`, `&`, `|`, `` ` ``, `$`, `(`, `)`, `<`, `>`, `{`, `}`, `\n`) are strictly blocked before subprocess execution.
+3. **Executable Whitelist:** Only approved testing harnesses (`pytest`, `python`, `python3`) are permitted. System administration tools (`rm`, `bash`, `curl`, `wget`, `sudo`) are blocked with `EXECUTION_POLICY_BLOCKED`.
+4. **No Inline Python Execution:** Arbitrary code execution via `python -c` is forbidden.
+5. **Argument Traversal Protection:** Arguments containing `..` path traversals are blocked.
+6. **Environment Scrubbing:** Processes inherit a sanitized environment with `EVIDA_SANDBOX=1` and all cloud secrets scrubbed.
+

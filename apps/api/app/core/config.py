@@ -53,6 +53,18 @@ class Settings(BaseSettings):
     # Sandbox execution limits
     SANDBOX_TIMEOUT_SECONDS: float = Field(default=60.0, description="Sandbox run timeout")
 
+    # Phase 2 Archive Ingestion and Reproduction Boundaries
+    MAX_ARCHIVE_SIZE_MB: int = Field(default=50, description="Max allowed ZIP size in MB")
+    MAX_EXTRACTED_SIZE_MB: int = Field(default=200, description="Max allowed extracted size in MB")
+    MAX_FILE_COUNT: int = Field(default=5000, description="Max allowed file count in ZIP archive")
+    MAX_SINGLE_FILE_SIZE_MB: int = Field(default=20, description="Max single file size in MB")
+    REPRODUCTION_TIMEOUT_SECONDS: float = Field(
+        default=30.0, description="Max execution timeout for reproduction runs"
+    )
+    STORAGE_DIR: str = Field(
+        default=".evida_storage", description="Local storage root for uploaded archives"
+    )
+
     @property
     def is_supabase_configured(self) -> bool:
         """Return True if required Supabase credentials are provided."""
