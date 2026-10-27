@@ -50,7 +50,13 @@ export type InvestigationEventType =
   | "INVESTIGATION_STARTED"
   | "STATE_TRANSITIONED"
   | "INVESTIGATION_COMPLETED"
-  | "INVESTIGATION_FAILED";
+  | "INVESTIGATION_FAILED"
+  | "INVESTIGATION_HYPOTHESIS_RECORDED"
+  | "REGRESSION_TEST_GENERATED"
+  | "REGRESSION_TEST_VERIFICATION_STARTED"
+  | "REGRESSION_TEST_VERIFICATION_COMPLETED"
+  | "REGRESSION_TEST_REJECTED"
+  | "REGRESSION_TEST_PROVEN";
 
 export interface TokenUsage {
   prompt_tokens: number;
@@ -216,4 +222,69 @@ export interface ReproductionRun {
 export interface ReproductionRequest {
   command: string;
 }
+
+export type RegressionTestGenerationStatus = "GENERATED" | "REJECTED";
+
+export type RegressionVerificationStatus =
+  | "PENDING"
+  | "REGRESSION_PROVEN"
+  | "TEST_REJECTED"
+  | "TIMEOUT"
+  | "EXECUTION_ERROR"
+  | "POLICY_BLOCKED";
+
+export type RegressionFailureClassification =
+  | "ASSERTION_FAILURE"
+  | "TEST_EXECUTION_ERROR"
+  | "PASSING"
+  | "TIMEOUT"
+  | "POLICY_BLOCKED";
+
+export interface RegressionTestProposal {
+  test_path: string;
+  framework: string;
+  language: string;
+  description: string;
+  test_content: string;
+  target_symbol: string;
+  target_file: string;
+  expected_failure_reason: string;
+}
+
+export interface RegressionVerificationResponse {
+  id: string;
+  command: string;
+  status: RegressionVerificationStatus;
+  exit_code?: number | null;
+  duration_ms?: number | null;
+  failure_classification?: RegressionFailureClassification | null;
+  stdout: string;
+  stderr: string;
+  timed_out: boolean;
+  created_at: string;
+  completed_at?: string | null;
+}
+
+export interface RegressionTestResponse {
+  id: string;
+  investigation_id: string;
+  hypothesis_id: string;
+  test_path: string;
+  framework: string;
+  language: string;
+  description: string;
+  test_content: string;
+  target_symbol?: string | null;
+  target_file?: string | null;
+  expected_failure_reason?: string | null;
+  generation_status: RegressionTestGenerationStatus;
+  verification_status?: RegressionVerificationStatus | null;
+  model?: string | null;
+  provider?: string | null;
+  prompt_version: string;
+  verification?: RegressionVerificationResponse | null;
+  created_at: string;
+  verified_at?: string | null;
+}
+
 

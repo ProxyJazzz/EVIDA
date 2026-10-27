@@ -114,3 +114,41 @@ The `NEBIUS_API_KEY` and other platform credentials:
 - Are scrubbed from outgoing error payloads and application logs.
 - Never surface in raw or parsed model responses returned to API clients.
 
+---
+
+## 7. Phase 4 AI Regression Test Security & AST Safety Model
+
+### 7.1 Untrusted Code Invariant
+Code synthesized by AI models (Nebius / NVIDIA) is inherently untrusted. A model may inadvertently or adversarially output malicious Python statements, shell invocations, network probes, or filesystem destruction calls. EVIDA treats all AI-generated tests as untrusted code.
+
+### 7.2 Deterministic AST Safety Inspection
+Before any generated test code is written to disk or executed in the sandbox, it must pass through an AST validator (`apps/api/app/domain/investigations/test_validator.py`):
+1. **Compilation Check:** The test code is parsed using Python's standard `ast.parse()`. Any syntax error or invalid construct immediately triggers `400 REGRESSION_SYNTAX_ERROR`.
+2. **Prohibited Module Imports:** Imports of dangerous libraries are blocked via AST node inspection:
+   - Process control: `subprocess`, `multiprocessing`, `pty`, `commands`
+   - Networking & HTTP: `socket`, `requests`, `urllib`, `urllib3`, `http.client`, `httpx`, `aiohttp`, `paramiko`, `fabric`
+   - System internals: `ctypes`
+3. **Prohibited Function Calls:**
+   - Dynamic evaluation: `eval()`, `exec()`, `compile()`, `__import__()`
+   - Command execution: `os.system()`, `os.popen()`, `os.kill()`
+   - Filesystem destruction: `shutil.rmtree()`, `shutil.move()`, `os.remove()`, `os.unlink()`, `os.rmdir()`, `os.chmod()`, `os.chown()`
+   - Arbitrary write opens: `open(..., 'w')` / `open(..., 'wb')` / `open(..., 'a')`
+4. **Required Structure:** The test must contain at least one valid pytest test function (`def test_*`) or test class (`class Test*`). Empty or vacuous files are rejected.
+
+### 7.3 Path Traversal Defense
+The test path specified by the model is strictly sanitized:
+- Must be a relative POSIX path.
+- Must not begin with `/` or contain drive letters.
+- Must not contain `..` parent directory traversal tokens.
+- Must reside within the `tests/` directory and match `test_*.py` or `*_test.py`.
+
+### 7.4 Bounded Test Size
+Generated test content is capped at `MAX_GENERATED_TEST_BYTES` (20,000 bytes) to prevent resource exhaustion.
+
+### 7.5 Workspace Isolation & Non-Destructive Execution
+- The verification workspace extracts the **original unpatched repository**.
+- Zero modifications are made to production source files.
+- The test runs exclusively inside the ephemeral sandbox runner with stripped environment variables (`NEBIUS_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY` scrubbed).
+- Hard timeouts (30s) and memory caps prevent infinite loop denial-of-service.
+
+

@@ -67,11 +67,20 @@ describe("Frontend Foundation Tests", () => {
     // Phase 3: AI Investigation & Hypothesis Engine
     expect(screen.getByText(/AI Investigation/i)).toBeDefined();
     expect(screen.getByText(/Proposed Root Cause/i)).toBeDefined();
-    expect(screen.getByText(/nvidia\/Nemotron-3_5-Lightning/i)).toBeDefined();
+    expect(screen.getAllByText(/nvidia\/Nemotron-3_5-Lightning/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/99%/i)).toBeDefined();
     expect(screen.getByText(/Root Cause Candidate/i)).toBeDefined();
     expect(screen.getAllByText(/src\/calculator\.py/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Recommended Next Action/i)).toBeDefined();
     expect(screen.getByText(/Generate regression test/i)).toBeDefined();
+
+    // Phase 4: Regression Test Generation & Deterministic Verification
+    expect(screen.getAllByText(/Regression Test/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/AI PROPOSED REGRESSION TEST/i)).toBeDefined();
+    expect(screen.getAllByText(/DETERMINISTIC VERIFICATION/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/REGRESSION PROVEN/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/tests\/test_regression\.py/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/ASSERTION_FAILURE/i)).toBeDefined();
+    expect(screen.getByText(/EVIDA Invariant/i)).toBeDefined();
   });
 });

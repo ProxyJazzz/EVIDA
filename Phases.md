@@ -83,9 +83,26 @@ Phase 7: End-to-End Evaluation & Hardening
   - `GET /api/v1/investigations/{id}/hypothesis`
 - Minimal frontend UI rendering AI hypothesis, unverified confidence score, proposed root cause details, affected files, grounding evidence, and next action.
 
-### Phase 4 — Regression Test Synthesis & Deterministic Verification
-- Generation of standalone regression tests reproducing the defect.
-- Sandbox execution proving the regression test fails on unpatched code (negative proof).
+### Phase 4 — Regression Test Generation & Verification (Completed)
+- Standalone regression test generation from Phase 3 hypotheses via Nebius Token Factory and NVIDIA models.
+- Versioned prompt template (`REGRESSION_TEST_PROMPT_VERSION = "evida-regression-test-v1"`).
+- Strict Pydantic v2 structured output validation (`RegressionTestProposal`).
+- Deterministic AST and path validator (`apps/api/app/domain/investigations/test_validator.py`):
+  - Traversal, absolute path, and extension validation (must be relative path within `tests/test_*.py`).
+  - AST inspection blocking dangerous execution (`subprocess`, `os.system`, `socket`, `requests`, `eval`, `exec`, write mode open).
+  - Validation of Python syntax and requirement of at least one valid pytest test structure.
+- Bounded test size enforcement (`MAX_GENERATED_TEST_BYTES = 20,000`).
+- Isolated verification workspace extraction with original unpatched repository (zero source code modification).
+- Deterministic sandbox test execution via `sandbox/runner/runner.py`.
+- Objective verdict classification distinguishing test assertion failures (`REGRESSION_PROVEN`) from execution errors (`EXECUTION_ERROR`, `ImportError`, syntax error, collection failure), passing tests (`TEST_REJECTED`), timeouts (`TIMEOUT`), and policy violations (`POLICY_BLOCKED`).
+- Supabase migration (`20261027040000_regression_tests.sql`) creating `investigation_regression_tests` and append-only `regression_verification_runs` with RLS.
+- Audit timeline integration with events (`REGRESSION_TEST_GENERATED`, `REGRESSION_TEST_VERIFICATION_STARTED`, `REGRESSION_TEST_VERIFICATION_COMPLETED`, `REGRESSION_TEST_PROVEN`, `REGRESSION_TEST_REJECTED`).
+- Lifecycle state transition: `INVESTIGATING` -> `VERIFYING` upon proven regression.
+- Standard REST API endpoints:
+  - `POST /api/v1/investigations/{id}/regression-test`
+  - `GET /api/v1/investigations/{id}/regression-test`
+- Frontend visualization clearly separating AI PROPOSAL from DETERMINISTIC VERIFICATION with explicit invariant notice (`REGRESSION_PROVEN ≠ BUG_FIXED`).
+- Comprehensive unit and end-to-end integration test suite with deterministic mocks.
 
 ### Phase 5 — Candidate Patch Synthesis & Double Verification
 - Synthesis of minimal unified diff patches.

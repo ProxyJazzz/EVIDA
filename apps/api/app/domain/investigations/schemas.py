@@ -129,3 +129,43 @@ class InvestigationHypothesisResponse(BaseModel):
     output_tokens: int | None = None
     latency_ms: int | None = None
     created_at: datetime
+
+
+class RegressionVerificationResponse(BaseModel):
+    """Public API response representing deterministic sandbox verification of a regression test."""
+
+    id: UUID
+    command: str
+    status: str
+    exit_code: int | None = None
+    duration_ms: int | None = None
+    failure_classification: str | None = None
+    stdout: str = ""
+    stderr: str = ""
+    timed_out: bool = False
+    created_at: datetime
+    completed_at: datetime | None = None
+
+
+class RegressionTestResponse(BaseModel):
+    """Public API response contract for an AI-generated regression test and its verification result."""
+
+    id: UUID
+    investigation_id: UUID
+    hypothesis_id: UUID
+    test_path: str
+    framework: str = "pytest"
+    language: str = "python"
+    description: str
+    test_content: str
+    target_symbol: str | None = None
+    target_file: str | None = None
+    expected_failure_reason: str | None = None
+    generation_status: str
+    verification_status: str | None = None
+    model: str | None = None
+    provider: str | None = None
+    prompt_version: str = "evida-regression-test-v1"
+    verification: RegressionVerificationResponse | None = None
+    created_at: datetime
+    verified_at: datetime | None = None

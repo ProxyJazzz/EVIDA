@@ -395,4 +395,87 @@ Same as `POST /investigate` response body.
 - `AI_PROVIDER_UNAVAILABLE` (503): Nebius Token Factory connection failed or timed out.
 - `HYPOTHESIS_NOT_FOUND` (404): No hypothesis recorded for the requested investigation.
 
+---
+
+### 3.6 Regression Test Generation & Verification Endpoints (Phase 4)
+
+#### Generate & Verify Regression Test
+`POST /api/v1/investigations/{investigation_id}/regression-test`
+
+Synthesizes an untrusted pytest regression test targeting the Phase 3 causal hypothesis, executes deterministic AST/path safety validation, writes the test into an isolated workspace containing the **unpatched** repository, and deterministically verifies whether it fails as expected.
+
+**Preconditions:**
+- Investigation must be in `INVESTIGATING` status.
+- A valid Phase 3 hypothesis must exist.
+- Associated reproduction run must be `REPRODUCED`.
+- Returns `400 REGRESSION_PRECONDITION_FAILED` if preconditions are unmet.
+
+**Idempotency:**
+- If a valid `REGRESSION_PROVEN` test already exists for the current hypothesis, returns the existing record without re-invoking the model.
+
+**Response (200 OK):**
+```json
+{
+  "id": "99999999-9999-9999-9999-999999999999",
+  "investigation_id": "33333333-3333-3333-3333-333333333333",
+  "hypothesis_id": "88888888-8888-8888-8888-888888888888",
+  "test_path": "tests/test_regression.py",
+  "framework": "pytest",
+  "language": "python",
+  "description": "Verifies that divide(10, 2) performs division and returns 5 rather than multiplication.",
+  "test_content": "from src.calculator import divide\n\ndef test_divide_regression():\n    assert divide(10, 2) == 5\n",
+  "target_symbol": "divide",
+  "target_file": "src/calculator.py",
+  "expected_failure_reason": "divide(10, 2) evaluates to 20 instead of 5, triggering assertion failure",
+  "generation_status": "GENERATED",
+  "verification_status": "REGRESSION_PROVEN",
+  "verification": {
+    "id": "aaaa1111-aaaa-1111-aaaa-1111aaaaaaaa",
+    "command": "pytest tests/test_regression.py",
+    "status": "REGRESSION_PROVEN",
+    "exit_code": 1,
+    "duration_ms": 118,
+    "failure_classification": "ASSERTION_FAILURE",
+    "stdout": "============================= test session starts ==============================\nFAILED tests/test_regression.py::test_divide_regression - assert 20 == 5\n============================== 1 failed in 0.12s ===============================",
+    "stderr": "",
+    "timed_out": false,
+    "created_at": "2026-10-28T01:00:00Z",
+    "completed_at": "2026-10-28T01:00:01Z"
+  },
+  "created_at": "2026-10-28T01:00:00Z",
+  "verified_at": "2026-10-28T01:00:01Z"
+}
+```
+
+---
+
+#### Get Regression Test & Verification Evidence
+`GET /api/v1/investigations/{investigation_id}/regression-test`
+
+Retrieves the latest generated regression test and associated sandbox verification run.
+
+**Response (200 OK):**
+Same as `POST /regression-test` response body.
+
+**Response (404 Not Found):**
+```json
+{
+  "error": {
+    "code": "REGRESSION_TEST_NOT_FOUND",
+    "message": "No regression test found for investigation '33333333-3333-3333-3333-333333333333'.",
+    "request_id": "4167831d-cb56-46b0-b616-6714138a77c7"
+  }
+}
+```
+
+---
+
+### 3.7 Phase 4 Error Codes
+- `REGRESSION_PRECONDITION_FAILED` (400): Missing hypothesis, invalid state, or unverified reproduction run.
+- `REGRESSION_TEST_INVALID` (400): Proposed test path or content violated structural constraints.
+- `REGRESSION_SECURITY_VIOLATION` (400): AI proposed test contains dangerous AST nodes (`subprocess`, `socket`, `eval`, `os.system`).
+- `REGRESSION_SYNTAX_ERROR` (400): AI proposed test failed Python AST syntax compilation.
+- `REGRESSION_TEST_NOT_FOUND` (404): No regression test has been generated for the investigation.
+
+
 

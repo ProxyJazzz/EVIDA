@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, Clock, FileCode, Play, ShieldAlert, Terminal } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock, Cpu, FileCode, Play, ShieldAlert, Terminal, TestTube2 } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 
 interface InvestigationPageProps {
@@ -33,7 +33,8 @@ export default async function InvestigationPage({ params }: InvestigationPagePro
     { label: "CREATED", status: "completed" },
     { label: "INGESTING", status: "completed" },
     { label: "REPRODUCING", status: "completed" },
-    { label: "INVESTIGATING", status: "active" },
+    { label: "INVESTIGATING", status: "completed" },
+    { label: "VERIFYING", status: "active" },
   ];
 
   const hypothesis = {
@@ -57,6 +58,30 @@ export default async function InvestigationPage({ params }: InvestigationPagePro
     recommended_next_action: "Generate regression test"
   };
 
+  const regressionTest = {
+    test_path: "tests/test_regression.py",
+    framework: "pytest",
+    language: "python",
+    description: "Verifies that divide(10, 2) performs division and returns 5 rather than multiplication (20).",
+    test_content: "from src.calculator import divide\n\ndef test_divide_regression():\n    assert divide(10, 2) == 5\n",
+    target_symbol: "divide",
+    target_file: "src/calculator.py",
+    expected_failure_reason: "divide(10, 2) evaluates to 20 instead of 5, triggering assertion failure",
+    generation_status: "GENERATED",
+    verification_status: "REGRESSION_PROVEN",
+    provider: "Nebius",
+    model: "nvidia/Nemotron-3_5-Lightning",
+    verification: {
+      command: "pytest tests/test_regression.py",
+      status: "REGRESSION_PROVEN",
+      exit_code: 1,
+      duration_ms: 118,
+      failure_classification: "ASSERTION_FAILURE",
+      stdout: "============================= test session starts ==============================\nFAILED tests/test_regression.py::test_divide_regression - assert 20 == 5\n============================== 1 failed in 0.12s ===============================",
+      stderr: "",
+    },
+  };
+
   return (
     <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10 space-y-8">
       {/* Navigation & Header */}
@@ -73,7 +98,7 @@ export default async function InvestigationPage({ params }: InvestigationPagePro
             <h1 className="text-2xl font-bold tracking-tight text-white font-mono">
               Investigation #{investigationId.slice(0, 8)}
             </h1>
-            <StatusBadge status="INVESTIGATING" />
+            <StatusBadge status="VERIFYING" />
           </div>
           <p className="text-sm text-gray-400">
             Fix calculator division bug: <span className="font-mono text-gray-300">divide(10, 2) returns 20 instead of 5</span>
@@ -87,7 +112,7 @@ export default async function InvestigationPage({ params }: InvestigationPagePro
           <Clock className="w-4 h-4 text-emerald-400" />
           Investigation Lifecycle Timeline
         </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {timelineSteps.map((step) => (
             <div
               key={step.label}
@@ -218,6 +243,156 @@ export default async function InvestigationPage({ params }: InvestigationPagePro
           <span className="text-xs font-mono text-gray-400 italic">
             Deterministic verification in Phase 4
           </span>
+        </div>
+      </div>
+
+      {/* Phase 4: Regression Test Generation & Verification Section */}
+      <div className="rounded-xl border border-emerald-500/30 bg-surface/50 p-6 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-surface-border pb-4">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <TestTube2 className="w-5 h-5 text-emerald-400" />
+                Regression Test
+              </h2>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold bg-emerald-950/80 text-emerald-300 border border-emerald-700/60">
+                Phase 4 Verified
+              </span>
+            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              AI proposes test against suspected defect. Deterministic execution in sandbox proves regression.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <StatusBadge status={regressionTest.verification_status} />
+          </div>
+        </div>
+
+        {/* Dual Panels: AI Proposal vs Deterministic Verification */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Panel 1: AI Proposal (Untrusted) */}
+          <div className="rounded-lg border border-surface-border bg-background/60 p-5 space-y-4">
+            <div className="flex items-center justify-between border-b border-surface-border pb-3">
+              <div className="flex items-center gap-2">
+                <Cpu className="w-4 h-4 text-amber-400" />
+                <span className="text-xs font-mono font-bold text-gray-200 uppercase tracking-wider">
+                  AI PROPOSED REGRESSION TEST
+                </span>
+              </div>
+              <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-amber-950/60 text-amber-300 border border-amber-800/40">
+                Untrusted Output
+              </span>
+            </div>
+
+            <div className="space-y-3 font-mono text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-2.5 rounded bg-surface/50 border border-surface-border">
+                  <span className="text-gray-400 block mb-0.5">Test Path</span>
+                  <span className="text-gray-100 font-semibold">{regressionTest.test_path}</span>
+                </div>
+                <div className="p-2.5 rounded bg-surface/50 border border-surface-border">
+                  <span className="text-gray-400 block mb-0.5">Framework</span>
+                  <span className="text-gray-100 font-semibold">{regressionTest.framework}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-2.5 rounded bg-surface/50 border border-surface-border">
+                  <span className="text-gray-400 block mb-0.5">Target File</span>
+                  <span className="text-amber-300 font-semibold">{regressionTest.target_file}</span>
+                </div>
+                <div className="p-2.5 rounded bg-surface/50 border border-surface-border">
+                  <span className="text-gray-400 block mb-0.5">Target Symbol</span>
+                  <span className="text-gray-200 font-semibold">{regressionTest.target_symbol}()</span>
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded bg-surface/50 border border-surface-border">
+                <span className="text-gray-400 block mb-0.5">Description</span>
+                <span className="text-gray-300">{regressionTest.description}</span>
+              </div>
+
+              <div className="p-2.5 rounded bg-surface/50 border border-surface-border">
+                <span className="text-gray-400 block mb-0.5">Expected Failure Reason</span>
+                <span className="text-rose-300">{regressionTest.expected_failure_reason}</span>
+              </div>
+
+              <div>
+                <span className="text-gray-400 block mb-1">Generated Test Code</span>
+                <pre className="bg-black/90 border border-surface-border p-3 rounded text-[11px] text-gray-200 overflow-x-auto whitespace-pre font-mono">
+                  {regressionTest.test_content}
+                </pre>
+              </div>
+            </div>
+          </div>
+
+          {/* Panel 2: Deterministic Verification (Objective Evidence) */}
+          <div className="rounded-lg border border-emerald-500/30 bg-background/60 p-5 space-y-4">
+            <div className="flex items-center justify-between border-b border-surface-border pb-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span className="text-xs font-mono font-bold text-gray-200 uppercase tracking-wider">
+                  DETERMINISTIC VERIFICATION
+                </span>
+              </div>
+              <StatusBadge status={regressionTest.verification.status} />
+            </div>
+
+            {/* Verdict Meaning Callout */}
+            <div className="p-3 rounded bg-emerald-950/30 border border-emerald-800/40 text-xs font-mono space-y-1">
+              <span className="text-emerald-300 font-bold block">
+                {regressionTest.verification.status === "REGRESSION_PROVEN"
+                  ? "REGRESSION PROVEN"
+                  : regressionTest.verification.status === "TEST_REJECTED"
+                  ? "TEST REJECTED"
+                  : "VERIFICATION ERROR"}
+              </span>
+              <p className="text-gray-300 text-[11px] leading-relaxed">
+                {regressionTest.verification.status === "REGRESSION_PROVEN"
+                  ? "EVIDA executed the generated regression test against the original repository and observed the expected failure."
+                  : regressionTest.verification.status === "TEST_REJECTED"
+                  ? "The generated test did not demonstrate the original defect."
+                  : "Sandbox or setup execution failure occurred."}
+              </p>
+            </div>
+
+            <div className="space-y-3 font-mono text-xs">
+              <div className="grid grid-cols-3 gap-2">
+                <div className="p-2.5 rounded bg-surface/50 border border-surface-border">
+                  <span className="text-gray-400 block mb-0.5">Classification</span>
+                  <span className="text-rose-400 font-bold">{regressionTest.verification.failure_classification}</span>
+                </div>
+                <div className="p-2.5 rounded bg-surface/50 border border-surface-border">
+                  <span className="text-gray-400 block mb-0.5">Exit Code</span>
+                  <span className="text-gray-100 font-bold">{regressionTest.verification.exit_code}</span>
+                </div>
+                <div className="p-2.5 rounded bg-surface/50 border border-surface-border">
+                  <span className="text-gray-400 block mb-0.5">Duration</span>
+                  <span className="text-gray-100">{regressionTest.verification.duration_ms} ms</span>
+                </div>
+              </div>
+
+              <div>
+                <span className="text-gray-400 block mb-0.5">Verification Command</span>
+                <span className="text-gray-100 font-semibold bg-surface/50 px-2 py-1 rounded border border-surface-border inline-block">
+                  {regressionTest.verification.command}
+                </span>
+              </div>
+
+              <div>
+                <span className="text-gray-400 block mb-1">Sandbox Execution Output (stdout)</span>
+                <pre className="bg-black/90 border border-surface-border p-3 rounded text-[11px] text-gray-300 overflow-x-auto whitespace-pre font-mono">
+                  {regressionTest.verification.stdout}
+                </pre>
+              </div>
+            </div>
+
+            {/* Invariant Note */}
+            <div className="p-3 rounded bg-surface/50 border border-surface-border font-mono text-[11px] text-gray-400">
+              <span className="text-amber-400 font-semibold block mb-0.5">EVIDA Invariant</span>
+              <span>REGRESSION_PROVEN confirms defect reproduction on the original repository. Source code has not been modified; bug is not yet fixed. Ready for Phase 5 patch generation.</span>
+            </div>
+          </div>
         </div>
       </div>
 

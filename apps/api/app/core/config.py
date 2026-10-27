@@ -86,6 +86,13 @@ class Settings(BaseSettings):
         default="evida-investigation-v1",
         description="Canonical investigation prompt template version",
     )
+    MAX_GENERATED_TEST_BYTES: int = Field(
+        default=20000, description="Max allowed bytes for an AI-generated regression test"
+    )
+    REGRESSION_TEST_PROMPT_VERSION: str = Field(
+        default="evida-regression-test-v1",
+        description="Canonical regression test prompt template version",
+    )
 
     @property
     def is_supabase_configured(self) -> bool:

@@ -182,6 +182,27 @@ class InvestigationService:
         )
         return self._to_response(updated)
 
+    async def record_event(
+        self,
+        investigation_id: UUID,
+        event_type: str,
+        from_status: InvestigationStatus,
+        to_status: InvestigationStatus,
+        metadata: dict[str, Any] | None = None,
+    ) -> InvestigationEvent:
+        """Record an audit event without changing investigation state."""
+        event = InvestigationEvent(
+            id=uuid4(),
+            investigation_id=investigation_id,
+            event_type=event_type,
+            from_status=from_status,
+            to_status=to_status,
+            metadata=metadata or {},
+            created_at=datetime.now(UTC),
+        )
+        await self.repo.record_event(investigation_id, event)
+        return event
+
     async def get_events(self, investigation_id: UUID) -> InvestigationEventsResponse:
         """Return ordered timeline of lifecycle events for an investigation."""
         inv = await self.repo.get_by_id(investigation_id)

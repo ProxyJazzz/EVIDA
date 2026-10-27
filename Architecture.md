@@ -278,4 +278,70 @@ To prevent context overflow, denial of service, or secret leaks:
 - Invoking `POST /investigate` multiple times is idempotent: if a hypothesis exists for the current reproduction run, the existing record is returned without re-invoking the model.
 - Lifecycle only transitions `REPRODUCING` -> `INVESTIGATING` **after** the structured hypothesis is validated and persisted.
 
+---
+
+## 7. Regression Test Generation & Verification Pipeline (Phase 4)
+
+```text
+PHASE 3 HYPOTHESIS & REPRODUCTION EVIDENCE
+        │
+        ▼
+BOUNDED REGRESSION CONTEXT BUILDER
+  ├── Hypothesis, root cause symbol/file, affected files
+  ├── Bounded reproduction stdout/stderr
+  └── Target source & existing test files
+        │
+        ▼
+STRUCTURED REGRESSION TEST PROMPT (evida-regression-test-v1)
+  ├── Model: nvidia/Nemotron-3_5-Lightning via Nebius Token Factory
+  └── Strict Structured JSON (test_path, test_content, framework, etc.)
+        │
+        ▼
+DETERMINISTIC VALIDATION (Pre-Execution Gate)
+  ├── Path Safety: Inside tests/, relative path, no '..', allowed extension
+  ├── AST Safety: No subprocess, socket, network, os.system, eval/exec
+  ├── Structure: Valid Python syntax and pytest test functions
+  └── Size Limit: Bounded by MAX_GENERATED_TEST_BYTES (20,000 bytes)
+        │
+        ▼
+ISOLATED VERIFICATION WORKSPACE
+  ├── Extract ORIGINAL unpatched repository archive
+  └── Write generated regression test (NO SOURCE CODE MODIFIED)
+        │
+        ▼
+SANDBOX RUNNER EXECUTION
+  ├── Command: pytest <test_path>
+  └── Hard limits: CPU, memory, PIDs, timeout (30s)
+        │
+        ▼
+OBJECTIVE VERDICT CLASSIFIER
+  ├── Assertion failure on buggy code ──► REGRESSION_PROVEN
+  ├── Test passed on buggy code       ──► TEST_REJECTED
+  ├── ImportError / SyntaxError / crash ──► EXECUTION_ERROR
+  ├── Execution timed out              ──► TIMEOUT
+  └── Security/policy violation       ──► POLICY_BLOCKED
+        │
+        ▼
+PERSISTENCE & AUDIT TIMELINE
+  ├── Table: investigation_regression_tests (Generation record)
+  ├── Table: regression_verification_runs (Append-only execution evidence)
+  └── Audit Events: REGRESSION_TEST_GENERATED, VERIFICATION_STARTED/COMPLETED, PROVEN/REJECTED
+        │
+        ▼
+LIFECYCLE TRANSITION
+  INVESTIGATING ──► VERIFYING (when REGRESSION_PROVEN)
+```
+
+### 7.1 Core Invariant: AI Proposes. Deterministic Evidence Decides.
+1. The AI-generated test is **untrusted code** until deterministic execution proves that it triggers the defect on the original code.
+2. The verification workspace contains **only** the original repository plus the generated test. **Zero source patches are applied.**
+3. `REGRESSION_PROVEN` means the defect is now pinned with a deterministic test. It does **NOT** mean the bug is fixed.
+4. False positives are strictly forbidden: test execution errors (`ImportError`, collection errors) must never be marked `REGRESSION_PROVEN`.
+
+### 7.2 Safety & Sandbox Boundary
+- AST validator inspects test syntax and blocks dangerous calls (`eval`, `exec`, `subprocess`, raw network sockets) before disk extraction.
+- Sandbox execution runs in unprivileged boundaries with stripped credentials (`NEBIUS_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY` scrubbed).
+- Output truncation prevents memory blowup while preserving failure diagnostics.
+
+
 

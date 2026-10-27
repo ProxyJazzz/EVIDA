@@ -26,6 +26,24 @@ export function StatusBadge({ status }: StatusBadgeProps) {
     );
   }
 
+  if (normalized === "REGRESSION_PROVEN") {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-semibold bg-emerald-950/60 text-emerald-400 border border-emerald-800/60">
+        <CheckCircle2 className="w-3.5 h-3.5" />
+        REGRESSION PROVEN
+      </span>
+    );
+  }
+
+  if (normalized === "TEST_REJECTED") {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-semibold bg-rose-950/60 text-rose-400 border border-rose-800/60">
+        <XCircle className="w-3.5 h-3.5" />
+        TEST REJECTED
+      </span>
+    );
+  }
+
   if (normalized === "TIMEOUT" || normalized === "POLICY_BLOCKED") {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-semibold bg-amber-950/60 text-amber-400 border border-amber-800/60">
@@ -58,7 +76,7 @@ export function StatusBadge({ status }: StatusBadgeProps) {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-semibold bg-red-950/60 text-red-400 border border-red-800/60">
         <XCircle className="w-3.5 h-3.5" />
-        {normalized}
+        {normalized === "EXECUTION_ERROR" ? "VERIFICATION ERROR" : normalized}
       </span>
     );
   }

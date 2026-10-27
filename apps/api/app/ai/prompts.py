@@ -98,3 +98,106 @@ Failure Log / Traceback:
 
 Provide your structured causal hypothesis and reproduction strategy.
 """
+
+# Phase 4 — Regression Test Generation Prompts
+REGRESSION_TEST_PROMPT_VERSION = "evida-regression-test-v1"
+
+REGRESSION_TEST_SYSTEM_PROMPT = """You are EVIDA's regression test generation engine.
+
+Your task is to generate a standalone, executable regression test for an existing software defect based on reproduction evidence and a validated causal hypothesis.
+
+The generated test will be executed against the ORIGINAL buggy repository.
+
+MANDATORY INVARIANTS:
+1. The test MUST FAIL on the original implementation if the causal hypothesis is correct.
+2. Do not modify production source code.
+3. Do not generate a test that merely passes or contains vacuous assertions.
+4. Do not use mocks to hide the suspected defect.
+5. Do not use external network resources or arbitrary shell subprocesses.
+6. Do not depend on environment secrets or credentials.
+7. Return ONLY valid JSON adhering strictly to the requested schema. Do not enclose your output in introductory prose.
+
+JSON Schema:
+{
+  "test_path": "tests/test_regression.py",
+  "framework": "pytest",
+  "language": "python",
+  "description": "Short explanation of what defect this regression test catches",
+  "test_content": "import pytest\\nfrom ... import ...\\n\\ndef test_...():\\n    ...",
+  "target_symbol": "name of function, method, or class tested",
+  "target_file": "relative path to file where defect originates",
+  "expected_failure_reason": "Specific explanation of why this test fails on unpatched code"
+}
+"""
+
+
+def build_regression_test_user_prompt(
+    *,
+    bug_description: str | None,
+    reproduction_command: str,
+    execution_status: str,
+    exit_code: int | None,
+    stdout: str,
+    stderr: str,
+    hypothesis: str,
+    root_cause_file: str,
+    root_cause_symbol: str | None,
+    root_cause_description: str,
+    affected_files: list[str],
+    evidence: list[str],
+    tree: str,
+    source_files: dict[str, str],
+    test_files: dict[str, str],
+) -> str:
+    """Construct structured regression test generation user prompt."""
+    sources_section = ""
+    for path, content in source_files.items():
+        sources_section += f"\n--- File: {path} ---\n{content}\n"
+
+    tests_section = ""
+    for path, content in test_files.items():
+        tests_section += f"\n--- Test: {path} ---\n{content}\n"
+
+    evidence_section = (
+        "\n".join(f"- {ev}" for ev in evidence) if evidence else "(no specific evidence items)"
+    )
+    affected_files_section = ", ".join(affected_files) if affected_files else "(none listed)"
+
+    return f"""Target Defect Description:
+{bug_description or "No bug description provided."}
+
+Reproduction Command:
+{reproduction_command} (status: {execution_status}, exit_code: {exit_code if exit_code is not None else "N/A"})
+
+Reproduction stdout:
+{stdout or "(no stdout)"}
+
+Reproduction stderr:
+{stderr or "(no stderr)"}
+
+Validated Causal Hypothesis:
+{hypothesis}
+
+Root Cause Candidate:
+- File: {root_cause_file}
+- Symbol: {root_cause_symbol or "N/A"}
+- Description: {root_cause_description}
+
+Affected Files:
+{affected_files_section}
+
+Grounding Evidence:
+{evidence_section}
+
+Repository Tree:
+{tree}
+
+Relevant Source Files:
+{sources_section or "(no source files)"}
+
+Existing Test Files:
+{tests_section or "(no test files)"}
+
+Task:
+Generate a deterministic, self-contained pytest regression test (e.g. tests/test_regression.py) that targets the buggy behavior and fails with an assertion failure against the current, unpatched codebase.
+"""

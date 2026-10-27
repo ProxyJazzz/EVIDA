@@ -41,6 +41,103 @@ class EventType(StrEnum):
     INVESTIGATION_COMPLETED = "INVESTIGATION_COMPLETED"
     INVESTIGATION_FAILED = "INVESTIGATION_FAILED"
     INVESTIGATION_HYPOTHESIS_RECORDED = "INVESTIGATION_HYPOTHESIS_RECORDED"
+    REGRESSION_TEST_GENERATED = "REGRESSION_TEST_GENERATED"
+    REGRESSION_TEST_VERIFICATION_STARTED = "REGRESSION_TEST_VERIFICATION_STARTED"
+    REGRESSION_TEST_VERIFICATION_COMPLETED = "REGRESSION_TEST_VERIFICATION_COMPLETED"
+    REGRESSION_TEST_REJECTED = "REGRESSION_TEST_REJECTED"
+    REGRESSION_TEST_PROVEN = "REGRESSION_TEST_PROVEN"
+
+
+class RegressionTestGenerationStatus(StrEnum):
+    """Status of AI regression test code generation."""
+
+    GENERATED = "GENERATED"
+    REJECTED = "REJECTED"
+
+
+class RegressionVerificationStatus(StrEnum):
+    """Objective deterministic execution verdict of the regression test."""
+
+    PENDING = "PENDING"
+    REGRESSION_PROVEN = "REGRESSION_PROVEN"
+    TEST_REJECTED = "TEST_REJECTED"
+    TIMEOUT = "TIMEOUT"
+    EXECUTION_ERROR = "EXECUTION_ERROR"
+    POLICY_BLOCKED = "POLICY_BLOCKED"
+
+
+class RegressionFailureClassification(StrEnum):
+    """Detailed failure classification distinguishing real assertion failure from execution flaws."""
+
+    ASSERTION_FAILURE = "ASSERTION_FAILURE"
+    TEST_EXECUTION_ERROR = "TEST_EXECUTION_ERROR"
+    PASSING = "PASSING"
+    TIMEOUT = "TIMEOUT"
+    POLICY_BLOCKED = "POLICY_BLOCKED"
+
+
+class RegressionTestProposal(BaseModel):
+    """Strict structured response expected from the AI regression test generation engine."""
+
+    test_path: str = Field(
+        ...,
+        description="Target relative test path inside repository, e.g. tests/test_regression.py",
+    )
+    framework: str = Field(default="pytest", description="Testing framework used")
+    language: str = Field(default="python", description="Language of the regression test")
+    description: str = Field(..., description="Explanation of what the regression test verifies")
+    test_content: str = Field(..., min_length=1, description="Raw executable test code")
+    target_symbol: str = Field(..., description="Target function, method, or class being tested")
+    target_file: str = Field(..., description="Target source file where the defect originates")
+    expected_failure_reason: str = Field(
+        ..., description="Why the test is expected to fail on the buggy codebase"
+    )
+
+
+class InvestigationRegressionTestRecord(BaseModel):
+    """Persisted database record of an AI-generated regression test."""
+
+    id: UUID = Field(default_factory=uuid4)
+    investigation_id: UUID
+    hypothesis_id: UUID
+    test_path: str
+    test_content: str
+    framework: str = "pytest"
+    language: str = "python"
+    description: str
+    target_symbol: str | None = None
+    target_file: str | None = None
+    expected_failure_reason: str | None = None
+    status: RegressionTestGenerationStatus = RegressionTestGenerationStatus.GENERATED
+    verification_status: RegressionVerificationStatus | None = RegressionVerificationStatus.PENDING
+    verification_run_id: UUID | None = None
+    model: str | None = None
+    provider: str | None = None
+    prompt_version: str = "evida-regression-test-v1"
+    raw_response: dict[str, Any] | None = None
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    latency_ms: int | None = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    verified_at: datetime | None = None
+
+
+class RegressionVerificationRun(BaseModel):
+    """Persisted record of an isolated sandbox verification run for a regression test."""
+
+    id: UUID = Field(default_factory=uuid4)
+    investigation_id: UUID
+    regression_test_id: UUID
+    command: str
+    status: RegressionVerificationStatus
+    exit_code: int | None = None
+    stdout: str = ""
+    stderr: str = ""
+    duration_ms: int | None = None
+    timed_out: bool = False
+    failure_classification: RegressionFailureClassification | None = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    completed_at: datetime | None = None
 
 
 class RootCauseCandidate(BaseModel):

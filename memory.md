@@ -1,14 +1,14 @@
 # EVIDA — Project Memory & Implementation Ledger
 
 ## Current Status
-- **Phase:** Phase 3 — AI Investigation & Hypothesis Engine (Nebius + NVIDIA)
+- **Phase:** Phase 4 — Regression Test Generation & Verification
 - **Status:** COMPLETED & VERIFIED
-- **Last Updated:** 2026-10-27
+- **Last Updated:** 2026-10-28
 
 ---
 
 ## Current Objective
-Phase 3 AI investigation and causal hypothesis engine is fully implemented and verified. Standing by for Phase 4 (Regression Test Synthesis & Deterministic Verification).
+Phase 4 regression test generation and deterministic verification engine is fully implemented and verified. Standing by for Phase 5 (Candidate Patch Synthesis & Double Verification).
 
 ---
 
@@ -59,11 +59,44 @@ Phase 3 AI investigation and causal hypothesis engine is fully implemented and v
 - [x] **Frontend Integration (`apps/web/app/investigations/[id]/page.tsx`):** Renders AI Investigation card with `INVESTIGATING` status, "Proposed Root Cause" badge (never "Verified Root Cause"), model/provider tags, hypothesis text, confidence score, root cause candidate details, affected files, grounding evidence list, and recommended next action.
 - [x] **Automated Validation:** 114 backend tests passing, 4 frontend tests passing, Ruff lint/formatting clean, Mypy strict type checking clean, sandbox validation passing.
 
+### Phase 4 — Regression Test Generation & Verification
+- [x] **Database Migration (`supabase/migrations/20261027040000_regression_tests.sql`):** Created `investigation_regression_tests` and `regression_verification_runs` with cascading foreign keys, compound indexes `(investigation_id, created_at DESC)`, and strict RLS tenant policies derived from project/investigation ownership.
+- [x] **Structured AI Regression Contract (`RegressionTestProposal`):** Strict Pydantic v2 model validating `test_path`, `framework` (pytest), `language` (python), `description`, `test_content`, `target_symbol`, `target_file`, `expected_failure_reason`.
+- [x] **Deterministic AST & Path Validator (`apps/api/app/domain/investigations/test_validator.py`):**
+  - Path traversal checks: must be relative, inside `tests/test_*.py`, no `..`, no leading `/`.
+  - Python AST parsing with `ast.parse`.
+  - Disallowed module and attribute checks: blocks `subprocess`, `os.system`, `os.popen`, `socket`, `requests`, `urllib`, `eval`, `exec`, `__import__`, `shutil.rmtree`, write-mode `open`.
+  - Structural validation: verifies presence of at least one test function (`test_*`).
+  - Size boundary: capped at `MAX_GENERATED_TEST_BYTES` (20,000 bytes).
+- [x] **Isolated Verification Workspace:**
+  - Extracts original unpatched repository archive into an isolated temporary workspace.
+  - Injects the generated regression test file without applying any patch or source code changes.
+  - Zero modification to production source files: validates negative reproduction proof.
+- [x] **Deterministic Sandbox Execution & Objective Verdict Classifier (`apps/api/app/domain/investigations/verdict_classifier.py`):**
+  - Distinguishes test assertion failures (`REGRESSION_PROVEN`, `ASSERTION_FAILURE`) from test execution errors (`EXECUTION_ERROR`, `TEST_EXECUTION_ERROR` due to `ImportError`, syntax error, collection failure).
+  - Classifies passing tests against buggy repo as `TEST_REJECTED` (`PASSING`).
+  - Classifies timeouts as `TIMEOUT` (never proven).
+  - Classifies policy violations as `POLICY_BLOCKED`.
+- [x] **Append-Only Evidence Persistence & Audit Trail:**
+  - Persists generated tests and append-only verification runs.
+  - Emits audit timeline events: `REGRESSION_TEST_GENERATED`, `REGRESSION_TEST_VERIFICATION_STARTED`, `REGRESSION_TEST_VERIFICATION_COMPLETED`, `REGRESSION_TEST_PROVEN`, `REGRESSION_TEST_REJECTED`.
+- [x] **Lifecycle Transition:**
+  - Transitions investigation `INVESTIGATING` -> `VERIFYING` only upon `REGRESSION_PROVEN`.
+  - Never transitions to `COMPLETED` (Phase 4 establishes defect capture, not bug repair).
+- [x] **REST API Endpoints:**
+  - `POST /api/v1/investigations/{id}/regression-test`: Generates and verifies regression test (idempotent for existing proven tests).
+  - `GET /api/v1/investigations/{id}/regression-test`: Retrieves regression test and latest verification run evidence.
+- [x] **Frontend Integration (`apps/web/app/investigations/[id]/page.tsx`):**
+  - Displays dual panels: "AI PROPOSED REGRESSION TEST" (untrusted proposal) vs "DETERMINISTIC VERIFICATION" (objective sandbox evidence).
+  - Shows verdict badge `REGRESSION PROVEN` / `TEST REJECTED` / `VERIFICATION ERROR`.
+  - Explicit invariant warning: "REGRESSION_PROVEN ≠ BUG_FIXED. Ready for Phase 5 patch generation."
+- [x] **Automated Validation:** 159 backend tests passing, 4 frontend tests passing, Ruff clean, Mypy strict clean, Next build clean, sandbox execution verified.
+
 ---
 
 ## Next Steps
-- Await instruction to start **Phase 4 — Regression Test Synthesis & Deterministic Verification**.
-- Do not begin Phase 4 until instructed.
+- Await instruction to start **Phase 5 — Candidate Patch Synthesis & Double Verification**.
+- Do not begin Phase 5 until instructed.
 
 ---
 

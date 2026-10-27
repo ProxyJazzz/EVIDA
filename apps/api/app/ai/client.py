@@ -159,7 +159,8 @@ class MockAIProvider:
         fixed_response: str | None = None,
     ) -> None:
         self.model = model
-        self.fixed_response = fixed_response or (
+        self.fixed_response = fixed_response
+        self._default_hypothesis_response = (
             "{\n"
             '  "hypothesis": "Defect verified: The divide function multiplies its operands instead of dividing.",\n'
             '  "confidence": 0.99,\n'
@@ -177,6 +178,18 @@ class MockAIProvider:
             '  "recommended_next_action": "generate_regression_test"\n'
             "}"
         )
+        self._default_regression_response = (
+            "{\n"
+            '  "test_path": "tests/test_regression.py",\n'
+            '  "framework": "pytest",\n'
+            '  "language": "python",\n'
+            '  "description": "Verifies that divide(10, 2) returns 5 rather than multiplying operands to 20.",\n'
+            '  "test_content": "from src.calculator import divide\\n\\ndef test_divide_regression():\\n    assert divide(10, 2) == 5\\n",\n'
+            '  "target_symbol": "divide",\n'
+            '  "target_file": "src/calculator.py",\n'
+            '  "expected_failure_reason": "The implementation multiplies operands (*) instead of dividing (/), returning 20 instead of 5."\n'
+            "}"
+        )
 
     async def generate(
         self,
@@ -186,8 +199,18 @@ class MockAIProvider:
         temperature: float = 0.2,
         max_tokens: int = 2048,
     ) -> AIResponse:
+        if self.fixed_response is not None:
+            content = self.fixed_response
+        elif (
+            "regression test generation engine" in system_prompt.lower()
+            or "tests/test_regression.py" in system_prompt.lower()
+        ):
+            content = self._default_regression_response
+        else:
+            content = self._default_hypothesis_response
+
         return AIResponse(
-            content=self.fixed_response,
+            content=content,
             model=self.model,
             provider="mock",
             usage=TokenUsage(prompt_tokens=42, completion_tokens=84, total_tokens=126),

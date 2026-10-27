@@ -18,7 +18,9 @@ from app.domain.investigations.models import (
     Investigation,
     InvestigationEvent,
     InvestigationHypothesisRecord,
+    InvestigationRegressionTestRecord,
     InvestigationStatus,
+    RegressionVerificationRun,
 )
 from app.domain.repositories.models import (
     Repository,
@@ -103,6 +105,37 @@ class InvestigationRepository(Protocol):
         """Retrieve latest AI investigation hypothesis for an investigation."""
         ...
 
+    # Phase 4: Regression Test & Verification Persistence
+    async def save_regression_test(
+        self, record: InvestigationRegressionTestRecord
+    ) -> InvestigationRegressionTestRecord:
+        """Persist or update an AI regression test record."""
+        ...
+
+    async def get_regression_test_by_investigation_id(
+        self, investigation_id: UUID
+    ) -> InvestigationRegressionTestRecord | None:
+        """Retrieve latest AI regression test for an investigation."""
+        ...
+
+    async def save_regression_verification_run(
+        self, run: RegressionVerificationRun
+    ) -> RegressionVerificationRun:
+        """Persist a regression test verification run."""
+        ...
+
+    async def get_verification_runs_by_test_id(
+        self, regression_test_id: UUID
+    ) -> list[RegressionVerificationRun]:
+        """Retrieve all verification runs for a regression test."""
+        ...
+
+    async def get_latest_verification_run_by_investigation_id(
+        self, investigation_id: UUID
+    ) -> RegressionVerificationRun | None:
+        """Retrieve latest verification run for an investigation."""
+        ...
+
 
 class InMemoryInvestigationRepository:
     """Thread-safe, transaction-consistent in-memory repository for local dev and testing."""
@@ -116,6 +149,12 @@ class InMemoryInvestigationRepository:
         self._reproduction_runs: dict[UUID, list[ReproductionRun]] = {}  # keyed by investigation_id
         self._hypotheses: dict[
             UUID, list[InvestigationHypothesisRecord]
+        ] = {}  # keyed by investigation_id
+        self._regression_tests: dict[
+            UUID, list[InvestigationRegressionTestRecord]
+        ] = {}  # keyed by investigation_id
+        self._verification_runs: dict[
+            UUID, list[RegressionVerificationRun]
         ] = {}  # keyed by investigation_id
         self._archives: dict[str, bytes] = {}
         self._seed_default_data()
@@ -293,6 +332,70 @@ class InMemoryInvestigationRepository:
             if not hypotheses:
                 return None
             return hypotheses[-1].model_copy()
+
+    async def save_regression_test(
+        self, record: InvestigationRegressionTestRecord
+    ) -> InvestigationRegressionTestRecord:
+        async with self._lock:
+            if record.investigation_id not in self._regression_tests:
+                self._regression_tests[record.investigation_id] = []
+            existing = [
+                t for t in self._regression_tests[record.investigation_id] if t.id == record.id
+            ]
+            if existing:
+                self._regression_tests[record.investigation_id] = [
+                    record.model_copy() if t.id == record.id else t
+                    for t in self._regression_tests[record.investigation_id]
+                ]
+            else:
+                self._regression_tests[record.investigation_id].append(record.model_copy())
+            return record.model_copy()
+
+    async def get_regression_test_by_investigation_id(
+        self, investigation_id: UUID
+    ) -> InvestigationRegressionTestRecord | None:
+        async with self._lock:
+            tests = self._regression_tests.get(investigation_id, [])
+            if not tests:
+                return None
+            return tests[-1].model_copy()
+
+    async def save_regression_verification_run(
+        self, run: RegressionVerificationRun
+    ) -> RegressionVerificationRun:
+        async with self._lock:
+            if run.investigation_id not in self._verification_runs:
+                self._verification_runs[run.investigation_id] = []
+            existing = [v for v in self._verification_runs[run.investigation_id] if v.id == run.id]
+            if existing:
+                self._verification_runs[run.investigation_id] = [
+                    run.model_copy() if v.id == run.id else v
+                    for v in self._verification_runs[run.investigation_id]
+                ]
+            else:
+                self._verification_runs[run.investigation_id].append(run.model_copy())
+            return run.model_copy()
+
+    async def get_verification_runs_by_test_id(
+        self, regression_test_id: UUID
+    ) -> list[RegressionVerificationRun]:
+        async with self._lock:
+            all_runs = []
+            for runs in self._verification_runs.values():
+                for run in runs:
+                    if run.regression_test_id == regression_test_id:
+                        all_runs.append(run.model_copy())
+            all_runs.sort(key=lambda r: r.created_at)
+            return all_runs
+
+    async def get_latest_verification_run_by_investigation_id(
+        self, investigation_id: UUID
+    ) -> RegressionVerificationRun | None:
+        async with self._lock:
+            runs = self._verification_runs.get(investigation_id, [])
+            if not runs:
+                return None
+            return runs[-1].model_copy()
 
 
 _memory_repo_instance: InMemoryInvestigationRepository | None = None

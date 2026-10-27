@@ -87,3 +87,26 @@ def test_investigation_hypotheses_migration_exists_and_valid():
     assert "idx_investigation_hypotheses_reproduction_run_id" in content
     assert "USING (true)" not in content
     assert "WITH CHECK (true)" not in content
+
+
+def test_regression_tests_migration_exists_and_valid():
+    reg_migration = (
+        PROJECT_ROOT / "supabase" / "migrations" / "20261027040000_regression_tests.sql"
+    )
+    assert reg_migration.exists(), "Phase 4 regression tests migration file must exist"
+    content = reg_migration.read_text(encoding="utf-8")
+
+    assert "public.investigation_regression_tests" in content
+    assert "public.regression_verification_runs" in content
+    assert (
+        "ALTER TABLE public.investigation_regression_tests ENABLE ROW LEVEL SECURITY;"
+        in content
+    )
+    assert (
+        "ALTER TABLE public.regression_verification_runs ENABLE ROW LEVEL SECURITY;"
+        in content
+    )
+    assert "idx_investigation_regression_tests_investigation_created" in content
+    assert "idx_regression_verification_runs_investigation_created" in content
+    assert "USING (true)" not in content
+    assert "WITH CHECK (true)" not in content
