@@ -9,6 +9,7 @@ from fastapi import Depends, Request
 from app.ai.client import AIProvider, create_ai_provider
 from app.core.config import Settings, get_settings
 from app.core.security import get_current_user_id
+from app.domain.investigations.ai_service import AIInvestigationService
 from app.domain.investigations.repository import get_investigation_repository
 from app.domain.investigations.service import InvestigationService
 from app.domain.repositories.reproduction_service import ReproductionService
@@ -55,3 +56,17 @@ def get_reproduction_service_dep(
 
 
 ReproductionServiceDep = Annotated[ReproductionService, Depends(get_reproduction_service_dep)]
+
+
+def get_ai_investigation_service_dep(
+    settings: SettingsDep,
+    investigation_service: InvestigationServiceDep,
+    ai_provider: AIProviderDep,
+) -> AIInvestigationService:
+    repo = get_investigation_repository(settings)
+    return AIInvestigationService(repo, investigation_service, ai_provider, settings)
+
+
+AIInvestigationServiceDep = Annotated[
+    AIInvestigationService, Depends(get_ai_investigation_service_dep)
+]

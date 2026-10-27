@@ -11,7 +11,7 @@ from uuid import UUID
 
 from app.ai.client import AIProvider
 from app.ai.prompts import HYPOTHESIS_USER_PROMPT_TEMPLATE, INVESTIGATION_SYSTEM_PROMPT
-from app.domain.investigations.models import InvestigationHypothesis
+from app.domain.investigations.models import InvestigationHypothesis, RootCauseCandidate
 
 
 class InvestigatorService:
@@ -45,9 +45,15 @@ class InvestigatorService:
         except Exception:
             # Fallback if raw text returned
             return InvestigationHypothesis(
-                summary=f"Analysis for: {issue_title}",
-                root_cause=response.content[:200],
-                affected_files=[],
+                hypothesis=f"Analysis for: {issue_title}",
                 confidence=0.5,
-                reproduction_strategy="Reproduce using synthetic test runner",
+                root_cause=RootCauseCandidate(
+                    file="unknown",
+                    symbol=None,
+                    line=None,
+                    description=response.content[:200],
+                ),
+                affected_files=[],
+                evidence=["Fallback hypothesis generated from unformatted model output."],
+                recommended_next_action="inspect_execution_trace",
             )

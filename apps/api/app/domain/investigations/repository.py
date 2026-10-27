@@ -17,6 +17,7 @@ from app.domain.investigations.models import (
     EventType,
     Investigation,
     InvestigationEvent,
+    InvestigationHypothesisRecord,
     InvestigationStatus,
 )
 from app.domain.repositories.models import (
@@ -89,6 +90,19 @@ class InvestigationRepository(Protocol):
         """Retrieve raw repository archive payload."""
         ...
 
+    # Phase 3: AI Investigation Hypothesis Persistence
+    async def save_hypothesis(
+        self, hypothesis: InvestigationHypothesisRecord
+    ) -> InvestigationHypothesisRecord:
+        """Persist or update an AI investigation hypothesis record."""
+        ...
+
+    async def get_hypothesis_by_investigation_id(
+        self, investigation_id: UUID
+    ) -> InvestigationHypothesisRecord | None:
+        """Retrieve latest AI investigation hypothesis for an investigation."""
+        ...
+
 
 class InMemoryInvestigationRepository:
     """Thread-safe, transaction-consistent in-memory repository for local dev and testing."""
@@ -100,6 +114,9 @@ class InMemoryInvestigationRepository:
         self._repositories: dict[UUID, Repository] = {}  # keyed by investigation_id
         self._repositories_by_id: dict[UUID, Repository] = {}
         self._reproduction_runs: dict[UUID, list[ReproductionRun]] = {}  # keyed by investigation_id
+        self._hypotheses: dict[
+            UUID, list[InvestigationHypothesisRecord]
+        ] = {}  # keyed by investigation_id
         self._archives: dict[str, bytes] = {}
         self._seed_default_data()
 
@@ -249,6 +266,33 @@ class InMemoryInvestigationRepository:
     async def get_archive_bytes(self, storage_path: str) -> bytes | None:
         async with self._lock:
             return self._archives.get(storage_path)
+
+    async def save_hypothesis(
+        self, hypothesis: InvestigationHypothesisRecord
+    ) -> InvestigationHypothesisRecord:
+        async with self._lock:
+            if hypothesis.investigation_id not in self._hypotheses:
+                self._hypotheses[hypothesis.investigation_id] = []
+            existing = [
+                h for h in self._hypotheses[hypothesis.investigation_id] if h.id == hypothesis.id
+            ]
+            if existing:
+                self._hypotheses[hypothesis.investigation_id] = [
+                    hypothesis.model_copy() if h.id == hypothesis.id else h
+                    for h in self._hypotheses[hypothesis.investigation_id]
+                ]
+            else:
+                self._hypotheses[hypothesis.investigation_id].append(hypothesis.model_copy())
+            return hypothesis.model_copy()
+
+    async def get_hypothesis_by_investigation_id(
+        self, investigation_id: UUID
+    ) -> InvestigationHypothesisRecord | None:
+        async with self._lock:
+            hypotheses = self._hypotheses.get(investigation_id, [])
+            if not hypotheses:
+                return None
+            return hypotheses[-1].model_copy()
 
 
 _memory_repo_instance: InMemoryInvestigationRepository | None = None

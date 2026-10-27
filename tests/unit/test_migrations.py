@@ -66,3 +66,24 @@ def test_repository_and_reproduction_migration_exists_and_valid():
     assert "idx_repositories_investigation_id" in content
     assert "USING (true)" not in content
     assert "WITH CHECK (true)" not in content
+
+
+def test_investigation_hypotheses_migration_exists_and_valid():
+    hypo_migration = (
+        PROJECT_ROOT
+        / "supabase"
+        / "migrations"
+        / "20261027030000_investigation_hypotheses.sql"
+    )
+    assert hypo_migration.exists(), "Phase 3 hypotheses migration file must exist"
+    content = hypo_migration.read_text(encoding="utf-8")
+
+    assert "public.investigation_hypotheses" in content
+    assert (
+        "ALTER TABLE public.investigation_hypotheses ENABLE ROW LEVEL SECURITY;"
+        in content
+    )
+    assert "idx_investigation_hypotheses_investigation_created" in content
+    assert "idx_investigation_hypotheses_reproduction_run_id" in content
+    assert "USING (true)" not in content
+    assert "WITH CHECK (true)" not in content

@@ -67,10 +67,21 @@ Phase 7: End-to-End Evaluation & Hardening
 - Minimal frontend UI displaying repository metadata, reproduction execution evidence, stdout/stderr, and lifecycle timeline.
 - Comprehensive unit and integration test suite with deterministic broken and passing repo fixtures.
 
-### Phase 3 — AI Investigation & Hypothesis Engine
-- Investigation prompt templates with AST extraction and failure log summarization.
-- Integration with Nebius Token Factory using NVIDIA Nemotron models.
-- Structured causal hypothesis extraction with verifiable claims.
+### Phase 3 — AI Investigation & Hypothesis Engine (Completed)
+- Deterministic repository context builder selecting relevant source and test files.
+- Bounded file trees, file byte limits, and output clipping (`MAX_CONTEXT_BYTES = 100000`, `MAX_FILE_BYTES = 20000`).
+- Deterministic Python stack trace parsing extracting file paths, lines, and function symbols to prioritize context.
+- Defense-in-depth sensitive file exclusion (`.env*`, `*.pem`, `*.key`, `credentials.json`, `service-account.json`, binary files).
+- Centralized prompt templates (`apps/api/app/ai/prompts.py`) versioned as `evida-investigation-v1`.
+- Integration with Nebius Token Factory using NVIDIA open models (`nvidia/Nemotron-3_5-Lightning`).
+- Structured `InvestigationHypothesis` contract with Pydantic validation (hypothesis, confidence `[0.0, 1.0]`, `RootCauseCandidate`, affected files, grounding evidence, recommended next action).
+- Resilience handling: markdown code fence parsing, single controlled retry on transient errors, typed domain errors (`INVESTIGATION_PRECONDITION_FAILED`, `AI_RESPONSE_INVALID`, `HYPOTHESIS_NOT_FOUND`).
+- Supabase schema migration (`investigation_hypotheses`) with cascading FKs, compound indexes, and RLS policies derived from investigation ownership.
+- Lifecycle transition: `REPRODUCING` -> `INVESTIGATING` (only transitions upon successful hypothesis creation and persistence).
+- Standard REST API endpoints:
+  - `POST /api/v1/investigations/{id}/investigate`
+  - `GET /api/v1/investigations/{id}/hypothesis`
+- Minimal frontend UI rendering AI hypothesis, unverified confidence score, proposed root cause details, affected files, grounding evidence, and next action.
 
 ### Phase 4 — Regression Test Synthesis & Deterministic Verification
 - Generation of standalone regression tests reproducing the defect.

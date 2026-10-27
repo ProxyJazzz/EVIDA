@@ -319,3 +319,80 @@ Retrieves the latest objective reproduction run execution telemetry and verdict 
 **Response (200 OK):**
 Same as `POST /reproduce` response body.
 
+---
+
+### 3.4 AI Investigation & Hypothesis Endpoints (Phase 3)
+
+#### Start AI Investigation
+`POST /api/v1/investigations/{investigation_id}/investigate`
+
+Executes the AI investigation pipeline for an investigation with a `REPRODUCED` failure. Binds repository context, invokes the configured NVIDIA model via Nebius Token Factory, parses and validates the structured causal hypothesis, persists it, and transitions the investigation to `INVESTIGATING`.
+
+**Preconditions:**
+- Investigation must have a completed reproduction run with status `REPRODUCED`.
+- If status is `NOT_REPRODUCED`, returns `400 INVESTIGATION_PRECONDITION_FAILED`.
+
+**Idempotency:**
+- Repeating the request returns the existing hypothesis for the current reproduction run without re-invoking the model.
+
+**Response (200 OK):**
+```json
+{
+  "id": "88888888-8888-8888-8888-888888888888",
+  "investigation_id": "33333333-3333-3333-3333-333333333333",
+  "reproduction_run_id": "77777777-7777-7777-7777-777777777777",
+  "provider": "nebius",
+  "model": "nvidia/Nemotron-3_5-Lightning",
+  "prompt_version": "evida-investigation-v1",
+  "hypothesis": "The divide function in src/calculator.py multiplies its operands instead of dividing them.",
+  "confidence": 0.99,
+  "root_cause": {
+    "file": "src/calculator.py",
+    "symbol": "divide",
+    "line": 2,
+    "description": "The implementation uses the multiplication operator (*) instead of the division operator (/)."
+  },
+  "affected_files": [
+    "src/calculator.py"
+  ],
+  "evidence": [
+    "The reproduction test expects 5 but the function returns 20.",
+    "The reproduction command 'pytest tests/test_bug.py' exited with code 1."
+  ],
+  "recommended_next_action": "generate_regression_test",
+  "created_at": "2026-10-27T16:07:00Z"
+}
+```
+
+---
+
+#### Get Investigation Hypothesis
+`GET /api/v1/investigations/{investigation_id}/hypothesis`
+
+Retrieves the latest structured causal hypothesis for an investigation.
+
+**Response (200 OK):**
+Same as `POST /investigate` response body.
+
+**Response (404 Not Found):**
+```json
+{
+  "error": {
+    "code": "HYPOTHESIS_NOT_FOUND",
+    "message": "No hypothesis found for investigation '33333333-3333-3333-3333-333333333333'.",
+    "request_id": "4167831d-cb56-46b0-b616-6714138a77c7"
+  }
+}
+```
+
+---
+
+### 3.5 Phase 3 Error Codes
+- `INVESTIGATION_PRECONDITION_FAILED` (400): Reproduction run is missing or verdict is not `REPRODUCED`.
+- `AI_RESPONSE_INVALID` (502): AI provider response could not be parsed as valid JSON or extracted from markdown fences.
+- `AI_RESPONSE_SCHEMA_INVALID` (502): AI response failed Pydantic schema validation.
+- `AI_CONTEXT_BUILD_FAILED` (500): Failed to extract or bound repository context files.
+- `AI_PROVIDER_UNAVAILABLE` (503): Nebius Token Factory connection failed or timed out.
+- `HYPOTHESIS_NOT_FOUND` (404): No hypothesis recorded for the requested investigation.
+
+

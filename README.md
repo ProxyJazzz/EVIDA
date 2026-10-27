@@ -180,6 +180,50 @@ python3 sandbox/runner/runner.py 'python3 -c "print(\"EVIDA sandbox OK\")"'
 
 ---
 
+## Phase 3 AI Investigation Workflow
+
+Once a failure reproduction run produces verdict `REPRODUCED`:
+
+### 1. Trigger AI Investigation
+```bash
+curl -X POST http://localhost:8000/api/v1/investigations/{id}/investigate \
+  -H "Content-Type: application/json"
+```
+
+### 2. Retrieve Causal Hypothesis
+```bash
+curl http://localhost:8000/api/v1/investigations/{id}/hypothesis
+```
+
+**Example Hypothesis Response:**
+```json
+{
+  "id": "88888888-8888-8888-8888-888888888888",
+  "investigation_id": "33333333-3333-3333-3333-333333333333",
+  "provider": "nebius",
+  "model": "nvidia/Nemotron-3_5-Lightning",
+  "prompt_version": "evida-investigation-v1",
+  "hypothesis": "The divide function in src/calculator.py multiplies its operands instead of dividing them.",
+  "confidence": 0.99,
+  "root_cause": {
+    "file": "src/calculator.py",
+    "symbol": "divide",
+    "line": 2,
+    "description": "The implementation uses the multiplication operator (*) instead of the division operator (/)."
+  },
+  "affected_files": ["src/calculator.py"],
+  "evidence": [
+    "The reproduction test expects 5 but the function returns 20.",
+    "The reproduction command 'pytest tests/test_bug.py' exited with code 1."
+  ],
+  "recommended_next_action": "generate_regression_test"
+}
+```
+
+> **Remember:** AI output is an untrusted proposal, not verified truth. EVIDA never modifies code or declares bugs fixed during investigation. Deterministic verification occurs in subsequent phases.
+
+---
+
 ## Database Migrations (Supabase)
 
 To apply migrations to your local or hosted Supabase project:

@@ -12,6 +12,7 @@ from app.domain.investigations.models import (
     EventType,
     InvestigationHypothesis,
     InvestigationStatus,
+    RootCauseCandidate,
 )
 
 
@@ -107,3 +108,24 @@ class StateTransitionRequest(BaseModel):
 
     target_status: InvestigationStatus
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class InvestigationHypothesisResponse(BaseModel):
+    """Public API response contract for an AI investigation hypothesis."""
+
+    id: UUID
+    investigation_id: UUID
+    reproduction_run_id: UUID
+    model: str
+    provider: str
+    prompt_version: str
+    hypothesis: str
+    confidence: float
+    root_cause: RootCauseCandidate
+    affected_files: list[str] = Field(default_factory=list)
+    evidence: list[str] = Field(default_factory=list)
+    recommended_next_action: str = "generate_regression_test"
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    latency_ms: int | None = None
+    created_at: datetime

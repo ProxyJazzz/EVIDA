@@ -1,14 +1,14 @@
 # EVIDA — Project Memory & Implementation Ledger
 
 ## Current Status
-- **Phase:** Phase 2 — Repository Ingestion & Failure Reproduction
+- **Phase:** Phase 3 — AI Investigation & Hypothesis Engine (Nebius + NVIDIA)
 - **Status:** COMPLETED & VERIFIED
 - **Last Updated:** 2026-10-27
 
 ---
 
 ## Current Objective
-Phase 2 repository ingestion and failure reproduction pipeline is fully implemented and verified. Standing by for Phase 3 (AI Investigation & Hypothesis Engine).
+Phase 3 AI investigation and causal hypothesis engine is fully implemented and verified. Standing by for Phase 4 (Regression Test Synthesis & Deterministic Verification).
 
 ---
 
@@ -43,13 +43,27 @@ Phase 2 repository ingestion and failure reproduction pipeline is fully implemen
 - [x] **Idempotency:** Repeated reproduction requests return the existing run without duplicate execution unless explicitly forced.
 - [x] **REST API Endpoints:** `POST /{id}/repository`, `GET /{id}/repository`, `POST /{id}/reproduce`, `GET /{id}/reproduction`.
 - [x] **Frontend Integration:** Added investigation detail view (`apps/web/app/investigations/[id]/page.tsx`) rendering repository metadata, reproduction execution evidence, stdout/stderr blocks, and lifecycle timeline.
-- [x] **Automated Validation:** 96 backend tests passing, 4 frontend tests passing, Ruff lint/format clean, Mypy strict type checking clean, sandbox validation passing.
+
+### Phase 3 — AI Investigation & Hypothesis Engine
+- [x] **Database Migration (`supabase/migrations/20261027030000_investigation_hypotheses.sql`):** Created `investigation_hypotheses` table with compound index `(investigation_id, created_at DESC)`, foreign keys with cascading delete, and RLS policies derived through investigation ownership (no open `USING (true)`).
+- [x] **Context Builder (`apps/api/app/domain/investigations/context_builder.py`):** Deterministic heuristics inspecting workspace files; sensitive file filtering (`.env*`, `*.pem`, `*.key`, `credentials.json`, `service-account.json`); binary filtering; ignored directory exclusion (`.git`, `__pycache__`, `venv`, etc.); priority heuristic ordering (traceback matches > test files > package source files).
+- [x] **Deterministic Stack Trace Hints:** Extracts source file paths, line numbers, and function symbols from Python tracebacks and pytest failure lines (`FAILED tests/test_bug.py::test_divide_bug`).
+- [x] **Bounded Context Guardrails (`apps/api/app/core/config.py`):** Centralized limits: `MAX_CONTEXT_FILES` (20), `MAX_CONTEXT_BYTES` (100KB), `MAX_FILE_BYTES` (20KB), `MAX_TREE_ENTRIES` (500), `MAX_STDOUT_CONTEXT_BYTES` (20KB), `MAX_STDERR_CONTEXT_BYTES` (20KB).
+- [x] **Structured Investigation Prompt (`apps/api/app/ai/prompts.py`):** Centralized system and user prompt templates with versioning tag `evida-investigation-v1` adhering to the core invariant: AI proposes, does NOT modify code, does NOT declare bugs fixed.
+- [x] **Strict Pydantic Validation (`InvestigationHypothesis`):** Validates causal hypothesis, confidence `[0.0, 1.0]`, structured `RootCauseCandidate` (`file`, `symbol`, `line`, `description`), affected files list, grounding evidence list, and recommended next action.
+- [x] **AI Investigation Service (`apps/api/app/domain/investigations/ai_service.py`):** Orchestrates precondition checks (requires `REPRODUCED`), context extraction, prompt construction, single-retry error handling for transient AI provider failures, markdown code-fence JSON extraction, schema validation, persistence, and transition `REPRODUCING` -> `INVESTIGATING`.
+- [x] **REST API Endpoints:**
+  - `POST /api/v1/investigations/{id}/investigate`: Starts AI investigation (idempotent, returns existing hypothesis if already generated).
+  - `GET /api/v1/investigations/{id}/hypothesis`: Retrieves the latest structured causal hypothesis.
+- [x] **Mock AI Provider:** Updated `MockAIProvider` to return structured Phase 3 JSON output without requiring external internet or API keys during testing.
+- [x] **Frontend Integration (`apps/web/app/investigations/[id]/page.tsx`):** Renders AI Investigation card with `INVESTIGATING` status, "Proposed Root Cause" badge (never "Verified Root Cause"), model/provider tags, hypothesis text, confidence score, root cause candidate details, affected files, grounding evidence list, and recommended next action.
+- [x] **Automated Validation:** 114 backend tests passing, 4 frontend tests passing, Ruff lint/formatting clean, Mypy strict type checking clean, sandbox validation passing.
 
 ---
 
 ## Next Steps
-- Await instruction to start **Phase 3 — AI Investigation & Hypothesis Engine (Nebius + NVIDIA)**.
-- Do not begin Phase 3 until instructed.
+- Await instruction to start **Phase 4 — Regression Test Synthesis & Deterministic Verification**.
+- Do not begin Phase 4 until instructed.
 
 ---
 

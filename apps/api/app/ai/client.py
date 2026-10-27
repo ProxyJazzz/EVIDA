@@ -160,8 +160,22 @@ class MockAIProvider:
     ) -> None:
         self.model = model
         self.fixed_response = fixed_response or (
-            '{"summary": "Defect verified", "root_cause": "Edge case unhandled in inputs", '
-            '"confidence": 0.95, "reproduction_strategy": "Add assertion with boundary value"}'
+            "{\n"
+            '  "hypothesis": "Defect verified: The divide function multiplies its operands instead of dividing.",\n'
+            '  "confidence": 0.99,\n'
+            '  "root_cause": {\n'
+            '    "file": "src/calculator.py",\n'
+            '    "symbol": "divide",\n'
+            '    "line": 4,\n'
+            '    "description": "Defect verified: The implementation uses multiplication (*) instead of division (/)." \n'
+            "  },\n"
+            '  "affected_files": ["src/calculator.py"],\n'
+            '  "evidence": [\n'
+            '    "The reproduction test expects 5 but the function returns 20.",\n'
+            '    "The reproduction command exited with code 1."\n'
+            "  ],\n"
+            '  "recommended_next_action": "generate_regression_test"\n'
+            "}"
         )
 
     async def generate(

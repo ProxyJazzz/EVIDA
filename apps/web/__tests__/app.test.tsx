@@ -56,13 +56,22 @@ describe("Frontend Foundation Tests", () => {
     expect(screen.getByText(/Phase 2 Pipeline Active/i)).toBeDefined();
   });
 
-  it("renders the Phase 2 investigation detail view with repository and reproduction evidence", async () => {
+  it("renders the Phase 3 investigation detail view with repository, reproduction evidence, and AI hypothesis", async () => {
     const Component = await InvestigationPage({ params: { id: "33333333-3333-3333-3333-333333333333" } });
     render(Component);
     expect(screen.getByText(/Investigation #33333333/i)).toBeDefined();
     expect(screen.getByText(/Repository Archive/i)).toBeDefined();
     expect(screen.getByText(/Failure Reproduction/i)).toBeDefined();
-    expect(screen.getByText(/REPRODUCTION_RESULT/i)).toBeDefined();
-    expect(screen.getByText(/pytest tests\/test_bug\.py/i)).toBeDefined();
+    expect(screen.getAllByText(/pytest tests\/test_bug\.py/i).length).toBeGreaterThan(0);
+
+    // Phase 3: AI Investigation & Hypothesis Engine
+    expect(screen.getByText(/AI Investigation/i)).toBeDefined();
+    expect(screen.getByText(/Proposed Root Cause/i)).toBeDefined();
+    expect(screen.getByText(/nvidia\/Nemotron-3_5-Lightning/i)).toBeDefined();
+    expect(screen.getByText(/99%/i)).toBeDefined();
+    expect(screen.getByText(/Root Cause Candidate/i)).toBeDefined();
+    expect(screen.getAllByText(/src\/calculator\.py/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Recommended Next Action/i)).toBeDefined();
+    expect(screen.getByText(/Generate regression test/i)).toBeDefined();
   });
 });

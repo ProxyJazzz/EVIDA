@@ -88,3 +88,29 @@ Extraction and reproduction execute inside temporary ephemeral workspaces create
 5. **Argument Traversal Protection:** Arguments containing `..` path traversals are blocked.
 6. **Environment Scrubbing:** Processes inherit a sanitized environment with `EVIDA_SANDBOX=1` and all cloud secrets scrubbed.
 
+---
+
+## 6. Phase 3 AI Context Security & Prompt Isolation
+
+### 6.1 Sensitive File Exclusion
+Untrusted repositories may contain local configuration files, development keys, or accidental secrets. The context builder strictly enforces exclusion patterns before files can be read or transmitted to external AI providers:
+- Environment and secret files: `.env`, `.env.*`, `*.pem`, `*.key`, `*.p12`, `*.pfx`
+- Cloud & authentication credentials: `credentials.json`, `service-account.json`, `service_account.json`, `id_rsa`, `id_ed25519`
+- Binary and media files: executable binaries, images, archives, compiled bytecode
+- Build and cache directories: `.git/`, `.venv/`, `venv/`, `__pycache__/`, `node_modules/`, `dist/`, `build/`, `.pytest_cache/`, `.mypy_cache/`, `.ruff_cache/`
+
+### 6.2 Bounded Transmission & Resource Limits
+To defend against prompt injection and unbounded context denial of service:
+- Maximum files in prompt: 20 files
+- Maximum combined context: 100,000 bytes
+- Maximum individual file content: 20,000 bytes
+- Maximum repository tree entries: 500 lines
+- Maximum stdout context: 20,000 bytes
+- Maximum stderr context: 20,000 bytes
+
+### 6.3 Credential Protection
+The `NEBIUS_API_KEY` and other platform credentials:
+- Are never included in system or user prompt templates.
+- Are scrubbed from outgoing error payloads and application logs.
+- Never surface in raw or parsed model responses returned to API clients.
+

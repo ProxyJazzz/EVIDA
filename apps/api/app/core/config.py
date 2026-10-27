@@ -65,6 +65,28 @@ class Settings(BaseSettings):
         default=".evida_storage", description="Local storage root for uploaded archives"
     )
 
+    # Phase 3 AI Investigation Context Limits
+    MAX_CONTEXT_FILES: int = Field(default=20, description="Max files to include in AI context")
+    MAX_CONTEXT_BYTES: int = Field(
+        default=100000, description="Max total context size in bytes sent to AI"
+    )
+    MAX_FILE_BYTES: int = Field(
+        default=20000, description="Max bytes per file included in AI context"
+    )
+    MAX_TREE_ENTRIES: int = Field(
+        default=500, description="Max directory tree entries in repository view"
+    )
+    MAX_STDOUT_CONTEXT_BYTES: int = Field(
+        default=20000, description="Max stdout bytes included in AI context"
+    )
+    MAX_STDERR_CONTEXT_BYTES: int = Field(
+        default=20000, description="Max stderr bytes included in AI context"
+    )
+    INVESTIGATION_PROMPT_VERSION: str = Field(
+        default="evida-investigation-v1",
+        description="Canonical investigation prompt template version",
+    )
+
     @property
     def is_supabase_configured(self) -> bool:
         """Return True if required Supabase credentials are provided."""

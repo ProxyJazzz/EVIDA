@@ -76,12 +76,41 @@ export interface ExecutionResult {
   command: string;
 }
 
+export interface RootCauseCandidate {
+  file: string;
+  symbol?: string | null;
+  line?: number | null;
+  description: string;
+}
+
 export interface InvestigationHypothesis {
-  summary: string;
-  root_cause: string;
-  affected_files: string[];
+  hypothesis: string;
   confidence: number;
-  reproduction_strategy: string;
+  root_cause: RootCauseCandidate | string;
+  affected_files: string[];
+  evidence?: string[];
+  recommended_next_action?: string;
+  summary?: string;
+  reproduction_strategy?: string;
+}
+
+export interface InvestigationHypothesisResponse {
+  id: string;
+  investigation_id: string;
+  reproduction_run_id: string;
+  model: string;
+  provider: string;
+  prompt_version: string;
+  hypothesis: string;
+  confidence: number;
+  root_cause: RootCauseCandidate;
+  affected_files: string[];
+  evidence: string[];
+  recommended_next_action: string;
+  input_tokens?: number | null;
+  output_tokens?: number | null;
+  latency_ms?: number | null;
+  created_at: string;
 }
 
 export interface VerificationEvidence {

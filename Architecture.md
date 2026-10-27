@@ -206,9 +206,76 @@ A command executing with an exit code of 0 does **not** mean the bug was reprodu
 - Zero exit code (`== 0`) indicates that the test passed without reproducing the defect (`NOT_REPRODUCED`).
 - Timeouts yield `TIMEOUT`.
 
-### 5.3 Intentional AI Boundary
-AI models (Nebius / NVIDIA) are **intentionally not invoked during Phase 2**.
+### 5.3 Intentional Decoupling
+AI models (Nebius / NVIDIA) are **never invoked to decide whether a bug reproduced**.
 - Phase 2 establishes **what happened** through deterministic execution evidence.
-- Phase 4 will introduce AI to answer **why it happened** and propose candidate fixes.
+- Phase 3 introduces AI to answer **why might it have happened** and propose candidate explanations.
 - This decoupling prevents hallucinated reproduction verdicts and guarantees that evidence alone drives the repair pipeline.
+
+---
+
+## 6. AI Investigation & Hypothesis Engine Pipeline (Phase 3)
+
+```text
+REPRODUCTION EVIDENCE (Phase 2 Run: REPRODUCED)
+        │
+        ▼
+CONTEXT BUILDER (Deterministic Heuristics)
+  ├── Sensitive File Filtering (.env*, *.pem, *.key, credentials.json)
+  ├── Stack Trace Extraction (File path, line number, symbol)
+  ├── Prioritized File Selection (Traceback > Tests > Source)
+  └── Strict Context Limits (MAX_CONTEXT_BYTES, MAX_FILE_BYTES, MAX_TREE_ENTRIES)
+        │
+        ▼
+STRUCTURED INVESTIGATION PROMPT (evida-investigation-v1)
+  ├── System Prompt: "You do not modify code. You do not claim the bug is fixed."
+  └── User Prompt: Bug description, reproduction command, exit code, stdout/stderr, bounded tree, selected source/tests
+        │
+        ▼
+NEBIUS TOKEN FACTORY (OpenAI-compatible /v1/chat/completions)
+  ├── NVIDIA Open Model (nvidia/Nemotron-3_5-Lightning)
+  └── Single Controlled Retry on Transient Failures
+        │
+        ▼
+AI RESPONSE PARSER & SCHEMA VALIDATOR
+  ├── Markdown Code Fence Stripping
+  ├── Strict Pydantic Validation (InvestigationHypothesis)
+  └── Confidence Range Enforcement (0.0 <= confidence <= 1.0)
+        │
+        ▼
+HYPOTHESIS PERSISTENCE (investigation_hypotheses)
+  ├── Raw telemetry (tokens, latency, prompt_version)
+  └── Investigation Audit Event Emitted
+        │
+        ▼
+LIFECYCLE TRANSITION
+  REPRODUCING ──► INVESTIGATING
+```
+
+### 6.1 Core Invariant: AI Proposes. Evidence Decides.
+1. **DETERMINISTIC SYSTEM:** "What happened?" (Exit code 1, test assertion failed, stdout/stderr captured).
+2. **AI ENGINE:** "Why might it have happened?" (Proposed causal hypothesis, root cause candidate, affected files).
+3. **DETERMINISTIC VERIFICATION (Phases 4-5):** "Is the proposed fix actually correct?"
+
+Therefore:
+- AI output is **never** treated as verified truth.
+- The AI must NOT modify code.
+- The AI must NOT generate patches (reserved for Phase 5).
+- The AI must NOT declare bugs fixed.
+- Terminology used: `Hypothesis`, `Confidence`, `Root cause candidate`, `Evidence`, `Affected files`, `Recommended next action`.
+- Terminology forbidden: "Confirmed root cause", "Verified fix", "Bug fixed".
+
+### 6.2 Bounded Context Guardrails
+To prevent context overflow, denial of service, or secret leaks:
+- `MAX_CONTEXT_FILES`: 20 files
+- `MAX_CONTEXT_BYTES`: 100,000 bytes
+- `MAX_FILE_BYTES`: 20,000 bytes
+- `MAX_TREE_ENTRIES`: 500 entries
+- `MAX_STDOUT_CONTEXT_BYTES`: 20,000 bytes
+- `MAX_STDERR_CONTEXT_BYTES`: 20,000 bytes
+
+### 6.3 Idempotency & Lifecycle Integration
+- Invoking `POST /investigate` multiple times is idempotent: if a hypothesis exists for the current reproduction run, the existing record is returned without re-invoking the model.
+- Lifecycle only transitions `REPRODUCING` -> `INVESTIGATING` **after** the structured hypothesis is validated and persisted.
+
 
