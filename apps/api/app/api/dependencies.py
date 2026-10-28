@@ -9,6 +9,7 @@ from fastapi import Depends, Request
 from app.ai.client import AIProvider, create_ai_provider
 from app.core.config import Settings, get_settings
 from app.core.security import get_current_user_id
+from app.domain.evidence.evidence_service import EvidenceService
 from app.domain.investigations.ai_service import AIInvestigationService
 from app.domain.investigations.regression_service import RegressionService
 from app.domain.investigations.repository import get_investigation_repository
@@ -110,3 +111,14 @@ def get_patch_verification_service_dep(
 PatchVerificationServiceDep = Annotated[
     PatchVerificationService, Depends(get_patch_verification_service_dep)
 ]
+
+
+def get_evidence_service_dep(
+    settings: SettingsDep,
+    investigation_service: InvestigationServiceDep,
+) -> EvidenceService:
+    repo = get_investigation_repository(settings)
+    return EvidenceService(repo, investigation_service, settings)
+
+
+EvidenceServiceDep = Annotated[EvidenceService, Depends(get_evidence_service_dep)]

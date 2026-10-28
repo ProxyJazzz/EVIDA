@@ -77,10 +77,11 @@ class AIInvestigationService:
         self,
         investigation_id: UUID,
         force_reinvestigate: bool = False,
+        user_id: str | None = None,
     ) -> InvestigationHypothesisResponse:
         """Analyze deterministic failure evidence, formulate causal hypothesis, and advance to INVESTIGATING."""
-        # 1. Retrieve investigation entity
-        inv = await self.investigation_service.get_investigation(investigation_id)
+        # 1. Retrieve investigation entity and verify ownership
+        inv = await self.investigation_service.get_investigation(investigation_id, user_id=user_id)
 
         # 2. Precondition check: Investigation must be in REPRODUCING or INVESTIGATING
         if inv.status == InvestigationStatus.INVESTIGATING:
@@ -239,9 +240,11 @@ class AIInvestigationService:
 
         return self._to_response(saved_record)
 
-    async def get_hypothesis(self, investigation_id: UUID) -> InvestigationHypothesisResponse:
+    async def get_hypothesis(
+        self, investigation_id: UUID, user_id: str | None = None
+    ) -> InvestigationHypothesisResponse:
         """Retrieve the latest structured hypothesis for an investigation."""
-        await self.investigation_service.get_investigation(investigation_id)
+        await self.investigation_service.get_investigation(investigation_id, user_id=user_id)
 
         record = await self.repo.get_hypothesis_by_investigation_id(investigation_id)
         if record is None:

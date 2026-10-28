@@ -1,13 +1,13 @@
 # EVIDA — Project Memory & Implementation Ledger
 ## Current Status
-- **Phase:** Phase 6 — Deterministic Patch Verification & Double Validation
+- **Phase:** Phase 8 — Production Hardening, Deployment & Hackathon Readiness
 - **Status:** COMPLETED & VERIFIED
 - **Last Updated:** 2026-10-28
 
 ---
 
 ## Current Objective
-Phase 6 deterministic patch verification and double validation engine is fully implemented, verified, and committed. Standing by for Phase 7 (End-to-End Evaluation & Hardening).
+Phase 8 Production Hardening, Deployment & Hackathon Readiness is complete. EVIDA is fully tested across all 8 phases, hardened for public demonstration, and prepared for final GitHub and video submission.
 
 ---
 
@@ -107,14 +107,76 @@ Phase 6 deterministic patch verification and double validation engine is fully i
 - [x] **Frontend Integration (`apps/web/app/investigations/[id]/page.tsx`):** Renders dedicated Phase 6 card with 3-step validation grid (Patch Application, Original Regression, Existing Test Suite), source integrity guarantee row, stdout terminals, and 9-step Evidence Chain Visualizer clearly differentiating AI PROPOSAL from DETERMINISTIC EVIDENCE.
 - [x] **Automated Validation:** 224 backend tests passing (unit, integration, state machine, sandbox), 4 frontend tests passing, Ruff lint/format clean, Mypy strict clean, Next build clean, sandbox execution verified.
 
+### Phase 7 — Evidence Bundle, Provenance & Audit System
+- [x] **Core Principle Enforced:**
+  - `AI_OUTPUT -> PROPOSAL` (never evidence)
+  - `DETERMINISTIC_EXECUTION -> EVIDENCE`
+  - `EVIDENCE -> VERDICT`
+- [x] **Database Migration (`supabase/migrations/20261027070000_evidence_bundle.sql`):** Added append-only `investigation_evidence` table with compound indexes `(investigation_id, created_at DESC)`, `(investigation_id, evidence_type)`, and `(source_entity_type, source_entity_id)` with strict tenant RLS (`FOR SELECT` and `FOR INSERT` only; no `UPDATE` or `DELETE` policies, guaranteeing append-only immutability).
+- [x] **Domain Models & Pydantic Contracts (`apps/api/app/domain/evidence/models.py`):**
+  - Strongly typed `EvidenceProvenance` (`AI_PROPOSAL`, `DETERMINISTIC_EXECUTION`, `CRYPTOGRAPHIC_INTEGRITY`, `SYSTEM_METADATA`, `AUDIT_EVENT`).
+  - Strongly typed `EvidenceType` (14 types: `INCIDENT`, `REPOSITORY`, `REPRODUCTION`, `HYPOTHESIS`, `REGRESSION_TEST`, `REGRESSION_PROOF`, `PATCH_PROPOSAL`, `PATCH_VALIDATION`, `PATCH_APPLICATION`, `REGRESSION_VERIFICATION`, `BASELINE_VERIFICATION`, `SOURCE_INTEGRITY`, `FINAL_VERDICT`, `AUDIT`).
+  - `EvidenceItem`, `EvidenceBundle`, and `EvidenceHashResponse`.
+  - Deterministic SHA-256 canonical JSON computation (`compute_content_sha256` and `compute_bundle_sha256`).
+  - Multi-layered secret scrubbing (`scrub_secrets` and `sanitize_dict_secrets`) for bearer tokens, JWTs, API keys, and sensitive environment variables.
+- [x] **Domain Service (`apps/api/app/domain/evidence/evidence_service.py`):**
+  - Aggregates evidence across all 13 stages from Phases 1–6 into a coherent audit chain.
+  - Zero AI calls during bundle generation (100% deterministic persistence retrieval).
+  - Explicit provenance labeling: AI hypotheses, regression test proposals, and patch proposals are tagged strictly as untrusted `AI_PROPOSAL`.
+  - Computes global cryptographic `bundle_sha256`.
+  - Multi-tenant tenant boundary checks with `INVESTIGATION_PRECONDITION_FAILED` / 403 on tenant mismatch.
+  - Audit trail integration: emits `EVIDENCE_BUNDLE_GENERATED` and `EVIDENCE_BUNDLE_EXPORTED`.
+- [x] **REST API Endpoints:**
+  - `GET /api/v1/investigations/{id}/evidence`: Retrieves complete structured `EvidenceBundle`.
+  - `GET /api/v1/investigations/{id}/evidence/items`: Retrieves chronological list of `EvidenceItem` records.
+  - `GET /api/v1/investigations/{id}/evidence/hash`: Fast hash verification endpoint returning `EvidenceHashResponse`.
+  - `GET /api/v1/investigations/{id}/evidence/export`: Downloads formatted JSON file attachment (`evida-evidence-{id}.json`).
+- [x] **Frontend UI (`apps/web/app/investigations/[id]/page.tsx`):**
+  - Renders dedicated Phase 7 card with "Export Bundle (.json)" download button.
+  - Evidence Bundle SHA-256 cryptographic badge bar.
+  - Provenance Taxonomy Legend (`AI_PROPOSAL`, `DETERMINISTIC_EXECUTION`, `CRYPTOGRAPHIC_INTEGRITY`, `SYSTEM_METADATA`, `AUDIT_EVENT`).
+  - Double-Validation Authoritative Confirmation Checklist confirming all 8 verification conditions.
+  - Evidence chain timeline listing all 11+ aggregated evidence items with distinct provenance badges, summaries, and SHA-256 hashes.
+- [x] **Automated Validation:** 235 backend tests passing, 4 frontend tests passing, Ruff lint/format clean, Mypy strict clean, Next build clean.
+
+### Phase 8 — Production Hardening, Deployment & Hackathon Readiness
+- [x] **Repository Secrets & Machine Path Scrubbing:** Verified 0 secrets, tokens, or personal paths (`/Users/sandygen/...`) exist across codebase and documentation.
+- [x] **Production Authentication & Authorization:**
+  - Enforced authentication token requirements when `APP_ENV=production` (rejecting anonymous requests with 401 `UNAUTHORIZED`).
+  - Added strict tenant boundary validation across all investigation, repository, reproduction, AI, patch, verification, and evidence endpoints (`INVESTIGATION_PERMISSION_DENIED` 403).
+- [x] **Production AI Provider Guardrails:**
+  - Added explicit check prohibiting silent fallback to `MockAIProvider` when `APP_ENV=production`.
+  - Configured structured `AIProviderError` with `AI_SERVICE_UNAVAILABLE` on provider downtime, preventing unverified investigations from being marked verified.
+- [x] **Production CORS & Configuration:**
+  - Added configurable `CORS_ORIGINS` to `Settings`.
+  - Restricted CORS to explicit origins in production while retaining developer ergonomics in development.
+- [x] **Failure Path UX Polish:**
+  - Added high-contrast `UNVERIFIED` failure banner in the Web UI explicitly communicating: *"The proposed patch was not verified because deterministic regression validation failed."*
+  - Visually links failure classification reasons (e.g. `REGRESSION_STILL_FAILING`).
+- [x] **Full E2E Regression & Acceptance Suite (`tests/integration/test_e2e_workflow.py`):**
+  - Canonical happy path test from fresh investigation to `COMPLETED` and evidence bundle export.
+  - Negative failure test proving flawed patch results in `UNVERIFIED` verdict and state remains `VERIFYING`.
+  - Multi-tenant boundary isolation test across all endpoints.
+  - Production anonymous rejection test.
+- [x] **Master Quality Gate Script (`scripts/final_validation.sh`):**
+  - Executable script verifying all 7 quality gates (pytest, ruff check, ruff format check, mypy, vitest, next lint, next build).
+- [x] **Hackathon Compliance Documentation (`docs/HACKATHON_COMPLIANCE.md`):**
+  - Full architectural alignment with Nebius Token Factory, NVIDIA Nemotron open model, and submission category.
+- [x] **3-Minute Demo Script (`docs/DEMO_SCRIPT.md`):**
+  - Second-by-second storyboard and voiceover script illustrating the problem, reproduction, AI proposal, deterministic verification, and evidence bundle.
+- [x] **Deployment & Operations Guide (`docs/DEPLOYMENT.md`):**
+  - Complete, reproducible deployment instructions for Next.js, FastAPI, Supabase, and isolated sandboxes without machine-specific paths.
+- [x] **Product README Rewrite (`README.md`):**
+  - Complete hackathon presentation highlighting the core maxim, problem, solution, architecture, and verification proof.
+
 ---
 
 ## Next Steps
-- Await instruction to start **Phase 7 — End-to-End Evaluation & Hardening**.
-- Do not begin Phase 7 until instructed.
+- Final submission for Nebius x NVIDIA Global AI Hackathon.
+- Record demo video following `docs/DEMO_SCRIPT.md`.
 
 ---
 
 ## Known Issues & Notes
 - Untrusted repository code never executes inside the FastAPI process; all execution occurs via the ephemeral sandbox runner.
-- Live Nebius API calls require an active `NEBIUS_API_KEY`; AI models are intentionally not called in Phase 2 to maintain deterministic reproduction proofs.
+- Live Nebius API calls require an active `NEBIUS_API_KEY`; AI models are intentionally not called in Phase 2, Phase 6, or Phase 7 to maintain deterministic execution proofs and audit integrity.

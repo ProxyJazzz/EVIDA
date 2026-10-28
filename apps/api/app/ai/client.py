@@ -249,4 +249,9 @@ def create_ai_provider(settings: Settings) -> AIProvider:
             model=settings.NEBIUS_MODEL,
             timeout_seconds=settings.AI_REQUEST_TIMEOUT_SECONDS,
         )
+    if settings.APP_ENV == "production":
+        raise AIProviderError(
+            "NEBIUS_API_KEY must be configured in production environment.",
+            status_code=500,
+        )
     return MockAIProvider(model=settings.NEBIUS_MODEL)

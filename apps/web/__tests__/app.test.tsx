@@ -84,7 +84,7 @@ describe("Frontend Foundation Tests", () => {
     expect(screen.getAllByText(/EVIDA Invariant/i).length).toBeGreaterThan(0);
 
     // Phase 5: Patch Generation & Candidate Validation
-    expect(screen.getByText(/Patch Candidate/i)).toBeDefined();
+    expect(screen.getAllByText(/Patch Candidate/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/AI PROPOSED PATCH/i)).toBeDefined();
     expect(screen.getAllByText(/NOT VERIFIED/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/VALIDATED/i).length).toBeGreaterThan(0);
@@ -100,5 +100,18 @@ describe("Frontend Foundation Tests", () => {
     expect(screen.getAllByText(/The original repository artifact remained unchanged/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/EVIDA Evidence Chain: AI Proposal vs. Deterministic Evidence/i)).toBeDefined();
     expect(screen.getAllByText(/DETERMINISTIC EVIDENCE/i).length).toBeGreaterThan(0);
+
+    // Phase 7: Evidence Bundle, Provenance & Audit System
+    expect(screen.getByText(/Phase 7 — Evidence Bundle, Provenance & Audit System/i)).toBeDefined();
+    expect(screen.getByText(/AUDITABLE RECORD/i)).toBeDefined();
+    expect(screen.getByText(/Export Bundle \(\.json\)/i)).toBeDefined();
+    expect(screen.getByText(/Evidence Bundle SHA-256:/i)).toBeDefined();
+    expect(screen.getByText(/Provenance Taxonomy/i)).toBeDefined();
+    expect(screen.getAllByText(/AI_PROPOSAL/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/DETERMINISTIC_EXECUTION/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/CRYPTOGRAPHIC_INTEGRITY/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Double-Validation Authoritative Confirmation Checklist/i)).toBeDefined();
+    expect(screen.getByText(/100% EVIDENCE SATISFIED/i)).toBeDefined();
+    expect(screen.getByText(/Evidence Chain Items/i)).toBeDefined();
   });
 });

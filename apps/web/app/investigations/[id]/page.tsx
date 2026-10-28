@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, Clock, Cpu, FileCode, GitPullRequest, Play, ShieldAlert, ShieldCheck, Terminal, TestTube2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock, Cpu, Download, FileCode, GitPullRequest, Layers, Play, ShieldAlert, ShieldCheck, Terminal, TestTube2 } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 
 interface InvestigationPageProps {
@@ -73,6 +73,120 @@ export default async function InvestigationPage({ params }: InvestigationPagePro
     source_integrity_verified: true,
     created_at: "2026-10-28T10:15:30Z",
     completed_at: "2026-10-28T10:15:32Z",
+  };
+
+  const evidenceBundle = {
+    bundle_id: "bundle-77777777-7777-7777-7777-777777777777",
+    investigation_id: investigationId,
+    generated_at: "2026-10-28T10:15:45Z",
+    verdict: "VERIFIED",
+    bundle_sha256: "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9",
+    evidence_items: [
+      {
+        phase: 1,
+        type: "INCIDENT",
+        title: "Incident Bug Report",
+        provenance: "SYSTEM_METADATA",
+        summary: "Bug reported: divide(10, 2) evaluates to 20 instead of 5.",
+        sha256: "a1b2c3d4e5f678901234567890abcdef1234567890abcdef1234567890abcdef",
+      },
+      {
+        phase: 2,
+        type: "REPOSITORY",
+        title: "Source Repository Ingested",
+        provenance: "CRYPTOGRAPHIC_INTEGRITY",
+        summary: "SHA-256: fa4aec473a843aa4d3a2df0840c192a2e28526c6f5d146b0ae7b7fabaf5280a9 (4096 bytes)",
+        sha256: "fa4aec473a843aa4d3a2df0840c192a2e28526c6f5d146b0ae7b7fabaf5280a9",
+      },
+      {
+        phase: 2,
+        type: "REPRODUCTION",
+        title: "Failure Reproduced in Sandbox",
+        provenance: "DETERMINISTIC_EXECUTION",
+        summary: "pytest tests/test_bug.py exited with code 1 in 142ms (REPRODUCED).",
+        sha256: "b2c3d4e5f678901234567890abcdef1234567890abcdef1234567890abcdef12",
+      },
+      {
+        phase: 3,
+        type: "HYPOTHESIS",
+        title: "AI Root Cause Proposed",
+        provenance: "AI_PROPOSAL",
+        summary: "Divide function in src/calculator.py multiplies instead of dividing (confidence 0.99).",
+        sha256: "c3d4e5f678901234567890abcdef1234567890abcdef1234567890abcdef1234",
+      },
+      {
+        phase: 4,
+        type: "REGRESSION_TEST",
+        title: "AI Regression Test Synthesized",
+        provenance: "AI_PROPOSAL",
+        summary: "tests/test_regression.py: asserts divide(10, 2) == 5.",
+        sha256: "d4e5f678901234567890abcdef1234567890abcdef1234567890abcdef123456",
+      },
+      {
+        phase: 4,
+        type: "REGRESSION_PROOF",
+        title: "Regression Proven Against Original Code",
+        provenance: "DETERMINISTIC_EXECUTION",
+        summary: "pytest tests/test_regression.py exited with code 1 (REGRESSION_PROVEN).",
+        sha256: "e5f678901234567890abcdef1234567890abcdef1234567890abcdef12345678",
+      },
+      {
+        phase: 5,
+        type: "PATCH_PROPOSAL",
+        title: "AI Patch Candidate Proposed",
+        provenance: "AI_PROPOSAL",
+        summary: "Unified diff replacing multiplication with division in src/calculator.py.",
+        sha256: "f678901234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+      },
+      {
+        phase: 5,
+        type: "PATCH_VALIDATION",
+        title: "Structural & Security Validation Passed",
+        provenance: "DETERMINISTIC_EXECUTION",
+        summary: "Zero AST violations, zero test mutations, strict scope checked (VALID).",
+        sha256: "078901234567890abcdef1234567890abcdef1234567890abcdef1234567890ab",
+      },
+      {
+        phase: 6,
+        type: "PATCH_APPLICATION",
+        title: "Patch Applied in Fresh Ephemeral Workspace",
+        provenance: "DETERMINISTIC_EXECUTION",
+        summary: "Applied cleanly to src/calculator.py (exit code 0).",
+        sha256: "18901234567890abcdef1234567890abcdef1234567890abcdef1234567890abcd",
+      },
+      {
+        phase: 6,
+        type: "REGRESSION_VERIFICATION",
+        title: "Proven Regression Test Passed Post-Patch",
+        provenance: "DETERMINISTIC_EXECUTION",
+        summary: "pytest tests/test_regression.py exited with code 0 (PASS).",
+        sha256: "2901234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+      },
+      {
+        phase: 6,
+        type: "BASELINE_VERIFICATION",
+        title: "Baseline Test Suite Passed",
+        provenance: "DETERMINISTIC_EXECUTION",
+        summary: "pytest exited with code 0 (zero existing test regressions).",
+        sha256: "301234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1",
+      },
+      {
+        phase: 6,
+        type: "SOURCE_INTEGRITY",
+        title: "Cryptographic Source Integrity Preserved",
+        provenance: "CRYPTOGRAPHIC_INTEGRITY",
+        summary: "Original repository SHA-256 before == after (fa4aec473a84... matched).",
+        sha256: "41234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12",
+      },
+      {
+        phase: 6,
+        type: "FINAL_VERDICT",
+        title: "Double Validation Final Verdict",
+        provenance: "DETERMINISTIC_EXECUTION",
+        summary: "Status: VERIFIED. Zero AI discretion. 100% deterministic execution proof.",
+        sha256: "5234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef123",
+      },
+    ],
   };
 
   const hypothesis = {
@@ -674,21 +788,39 @@ export default async function InvestigationPage({ params }: InvestigationPagePro
         </div>
 
         {/* Double Validation Rule Banner */}
-        <div className="p-4 rounded-lg bg-emerald-950/20 border border-emerald-800/40 font-mono text-xs text-emerald-300/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 font-semibold text-emerald-400">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>Double Validation Rule Satisfied: VERIFIED</span>
+        {verificationRun.status === "VERIFIED" ? (
+          <div className="p-4 rounded-lg bg-emerald-950/20 border border-emerald-800/40 font-mono text-xs text-emerald-300/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 font-semibold text-emerald-400">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>Double Validation Rule Satisfied: VERIFIED</span>
+              </div>
+              <p className="text-[11px] text-gray-300">
+                The candidate patch was applied in an isolated workspace. The proven regression test passed after patch application. The baseline test suite also passed. The original repository artifact remained unchanged.
+              </p>
             </div>
-            <p className="text-[11px] text-gray-300">
-              The candidate patch was applied in an isolated workspace. The proven regression test passed after patch application. The baseline test suite also passed. The original repository artifact remained unchanged.
-            </p>
+            <div className="text-[11px] text-gray-400 sm:text-right shrink-0">
+              <span className="text-gray-500">Core Maxim:</span>
+              <div className="text-emerald-400 font-bold">AI PROPOSES. EVIDENCE DECIDES.</div>
+            </div>
           </div>
-          <div className="text-[11px] text-gray-400 sm:text-right shrink-0">
-            <span className="text-gray-500">Core Maxim:</span>
-            <div className="text-emerald-400 font-bold">AI PROPOSES. EVIDENCE DECIDES.</div>
+        ) : (
+          <div className="p-4 rounded-lg bg-rose-950/20 border border-rose-800/40 font-mono text-xs text-rose-300/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 font-semibold text-rose-400">
+                <ShieldAlert className="w-4 h-4 text-rose-400" />
+                <span>Double Validation Rule Failed: UNVERIFIED</span>
+              </div>
+              <p className="text-[11px] text-gray-300">
+                The proposed patch was not verified because deterministic regression validation failed.
+              </p>
+            </div>
+            <div className="text-[11px] text-gray-400 sm:text-right shrink-0">
+              <span className="text-gray-500">Status:</span>
+              <div className="text-rose-400 font-bold">UNVERIFIED (DEFECT STILL FAILING)</div>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* 3 Step Validation Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -873,6 +1005,177 @@ export default async function InvestigationPage({ params }: InvestigationPagePro
               <span className="text-emerald-300 font-bold">9. VERIFIED</span>
               <span className="px-1.5 py-0.5 rounded bg-emerald-900/60 border border-emerald-700 text-[9px] text-emerald-300 font-bold">DETERMINISTIC EVIDENCE</span>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Phase 7: Evidence Bundle, Provenance & Audit System */}
+      <div className="rounded-xl border border-surface-border bg-surface/40 p-6 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-surface-border pb-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-950/80 text-purple-300 border border-purple-800 tracking-wider">
+                PHASE 7
+              </span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950/80 text-emerald-300 border border-emerald-800 tracking-wider">
+                AUDITABLE RECORD
+              </span>
+              <h2 className="text-base font-semibold text-white flex items-center gap-2">
+                <Layers className="w-5 h-5 text-purple-400" />
+                Phase 7 — Evidence Bundle, Provenance & Audit System
+              </h2>
+            </div>
+            <p className="text-xs text-gray-400">
+              Aggregated cryptographic audit chain across Phases 1–6. AI proposes; deterministic evidence decides.
+            </p>
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            <a
+              href={`/api/v1/investigations/${investigationId}/evidence/export`}
+              download={`evida-evidence-${investigationId}.json`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface border border-surface-border hover:bg-surface/80 hover:border-gray-500 text-xs font-semibold text-gray-200 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5 text-purple-400" />
+              Export Bundle (.json)
+            </a>
+          </div>
+        </div>
+
+        {/* Bundle SHA-256 Digest Bar */}
+        <div className="p-3.5 rounded-lg bg-background/80 border border-surface-border font-mono text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span className="text-gray-400 font-semibold">Evidence Bundle SHA-256:</span>
+            <span className="text-emerald-300 font-bold break-all bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-800/80 text-[11px]">
+              {evidenceBundle.bundle_sha256}
+            </span>
+          </div>
+          <div className="text-[11px] text-gray-400 flex items-center gap-2 shrink-0">
+            <span className="text-gray-500">Generated:</span>
+            <span className="text-gray-200">{evidenceBundle.generated_at}</span>
+          </div>
+        </div>
+
+        {/* Provenance Taxonomy Legend */}
+        <div className="p-3.5 rounded-lg bg-surface/50 border border-surface-border space-y-2">
+          <span className="text-[11px] font-semibold text-gray-300 uppercase tracking-wider block">
+            Provenance Taxonomy
+          </span>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 text-[10px] font-mono">
+            <div className="p-2 rounded bg-purple-950/40 border border-purple-800/80">
+              <span className="text-purple-300 font-bold block">AI_PROPOSAL</span>
+              <span className="text-gray-400 text-[9px]">Untrusted suggestion (never execution proof)</span>
+            </div>
+            <div className="p-2 rounded bg-blue-950/40 border border-blue-800/80">
+              <span className="text-blue-300 font-bold block">DETERMINISTIC_EXECUTION</span>
+              <span className="text-gray-400 text-[9px]">Sandboxed command exit code & output</span>
+            </div>
+            <div className="p-2 rounded bg-emerald-950/40 border border-emerald-800/80">
+              <span className="text-emerald-300 font-bold block">CRYPTOGRAPHIC_INTEGRITY</span>
+              <span className="text-gray-400 text-[9px]">Immutable SHA-256 digests</span>
+            </div>
+            <div className="p-2 rounded bg-slate-900/60 border border-slate-700/80">
+              <span className="text-slate-300 font-bold block">SYSTEM_METADATA</span>
+              <span className="text-gray-400 text-[9px]">Canonical timestamps, IDs & versions</span>
+            </div>
+            <div className="p-2 rounded bg-amber-950/40 border border-amber-800/80">
+              <span className="text-amber-300 font-bold block">AUDIT_EVENT</span>
+              <span className="text-gray-400 text-[9px]">Append-only audit trail record</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Double-Validation Authoritative Confirmation Checklist */}
+        <div className="p-4 rounded-lg bg-background/60 border border-surface-border space-y-3 font-mono">
+          <div className="flex items-center justify-between border-b border-surface-border pb-2">
+            <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider">
+              Double-Validation Authoritative Confirmation Checklist
+            </span>
+            <span className="text-emerald-400 font-bold text-xs flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              100% EVIDENCE SATISFIED
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-[11px]">
+            <div className="p-2 rounded bg-surface/40 border border-surface-border flex items-center justify-between">
+              <span className="text-gray-400">Reproduction proven</span>
+              <span className="text-emerald-400 font-bold">YES</span>
+            </div>
+            <div className="p-2 rounded bg-surface/40 border border-surface-border flex items-center justify-between">
+              <span className="text-gray-400">Regression test proven</span>
+              <span className="text-emerald-400 font-bold">YES</span>
+            </div>
+            <div className="p-2 rounded bg-surface/40 border border-surface-border flex items-center justify-between">
+              <span className="text-gray-400">Patch candidate valid</span>
+              <span className="text-emerald-400 font-bold">YES</span>
+            </div>
+            <div className="p-2 rounded bg-surface/40 border border-surface-border flex items-center justify-between">
+              <span className="text-gray-400">Ephemeral application</span>
+              <span className="text-emerald-400 font-bold">YES</span>
+            </div>
+            <div className="p-2 rounded bg-surface/40 border border-surface-border flex items-center justify-between">
+              <span className="text-gray-400">Regression post-patch</span>
+              <span className="text-emerald-400 font-bold">PASS</span>
+            </div>
+            <div className="p-2 rounded bg-surface/40 border border-surface-border flex items-center justify-between">
+              <span className="text-gray-400">Baseline suite post-patch</span>
+              <span className="text-emerald-400 font-bold">PASS</span>
+            </div>
+            <div className="p-2 rounded bg-surface/40 border border-surface-border flex items-center justify-between">
+              <span className="text-gray-400">Source unmodified</span>
+              <span className="text-emerald-400 font-bold">YES</span>
+            </div>
+            <div className="p-2 rounded bg-emerald-950/40 border border-emerald-800 flex items-center justify-between">
+              <span className="text-emerald-300 font-semibold">Final verdict</span>
+              <span className="text-emerald-300 font-bold">VERIFIED</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Evidence Items Timeline */}
+        <div className="space-y-3 font-mono text-xs">
+          <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider block">
+            Evidence Chain Items ({evidenceBundle.evidence_items.length})
+          </span>
+          <div className="space-y-2">
+            {evidenceBundle.evidence_items.map((item, idx) => (
+              <div
+                key={idx}
+                className="p-3 rounded-lg bg-background/80 border border-surface-border flex flex-col md:flex-row md:items-center justify-between gap-2.5 hover:border-gray-600 transition-colors"
+              >
+                <div className="flex items-start md:items-center gap-3">
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-surface border border-surface-border text-gray-400 shrink-0">
+                    Phase {item.phase}
+                  </span>
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-gray-200 font-bold text-xs">{item.title}</span>
+                      <span className="text-[10px] text-gray-500">({item.type})</span>
+                      <span
+                        className={`px-1.5 py-0.5 rounded border text-[9px] font-bold ${
+                          item.provenance === "AI_PROPOSAL"
+                            ? "bg-purple-950/70 border-purple-800 text-purple-300"
+                            : item.provenance === "DETERMINISTIC_EXECUTION"
+                            ? "bg-blue-950/70 border-blue-800 text-blue-300"
+                            : item.provenance === "CRYPTOGRAPHIC_INTEGRITY"
+                            ? "bg-emerald-950/70 border-emerald-800 text-emerald-300"
+                            : "bg-slate-900 border-slate-700 text-slate-300"
+                        }`}
+                      >
+                        {item.provenance}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-gray-400">{item.summary}</p>
+                  </div>
+                </div>
+                <div className="text-[10px] text-gray-500 font-mono shrink-0 pl-10 md:pl-0">
+                  <span className="text-gray-600 mr-1">SHA-256:</span>
+                  <span className="text-gray-400 bg-surface px-1.5 py-0.5 rounded border border-surface-border">
+                    {item.sha256.slice(0, 16)}...
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>

@@ -67,6 +67,11 @@ class EventType(StrEnum):
     SOURCE_INTEGRITY_CHECKED = "SOURCE_INTEGRITY_CHECKED"
     SOURCE_INTEGRITY_VIOLATION = "SOURCE_INTEGRITY_VIOLATION"
 
+    # Phase 7: Evidence Bundle, Provenance & Audit Events
+    EVIDENCE_BUNDLE_GENERATED = "EVIDENCE_BUNDLE_GENERATED"
+    EVIDENCE_BUNDLE_ACCESSED = "EVIDENCE_BUNDLE_ACCESSED"
+    EVIDENCE_BUNDLE_EXPORTED = "EVIDENCE_BUNDLE_EXPORTED"
+
 
 class RegressionTestGenerationStatus(StrEnum):
     """Status of AI regression test code generation."""

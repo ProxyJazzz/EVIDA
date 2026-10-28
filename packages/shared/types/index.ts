@@ -74,7 +74,10 @@ export type InvestigationEventType =
   | "PATCH_VERIFIED"
   | "PATCH_UNVERIFIED"
   | "SOURCE_INTEGRITY_CHECKED"
-  | "SOURCE_INTEGRITY_VIOLATION";
+  | "SOURCE_INTEGRITY_VIOLATION"
+  | "EVIDENCE_BUNDLE_GENERATED"
+  | "EVIDENCE_BUNDLE_ACCESSED"
+  | "EVIDENCE_BUNDLE_EXPORTED";
 
 export interface TokenUsage {
   prompt_tokens: number;
@@ -420,6 +423,69 @@ export interface PatchVerificationResponse {
   created_at: string;
   completed_at: string;
 }
+
+// Phase 7: Evidence Bundle, Provenance & Audit System Contracts
+
+export type EvidenceProvenance =
+  | "AI_PROPOSAL"
+  | "DETERMINISTIC_EXECUTION"
+  | "CRYPTOGRAPHIC_INTEGRITY"
+  | "SYSTEM_METADATA"
+  | "AUDIT_EVENT";
+
+export type EvidenceType =
+  | "INCIDENT"
+  | "REPOSITORY"
+  | "REPRODUCTION"
+  | "HYPOTHESIS"
+  | "REGRESSION_TEST"
+  | "REGRESSION_PROOF"
+  | "PATCH_PROPOSAL"
+  | "PATCH_VALIDATION"
+  | "PATCH_APPLICATION"
+  | "REGRESSION_VERIFICATION"
+  | "BASELINE_VERIFICATION"
+  | "SOURCE_INTEGRITY"
+  | "FINAL_VERDICT"
+  | "AUDIT";
+
+export interface EvidenceItem {
+  id: string;
+  investigation_id: string;
+  evidence_type: EvidenceType;
+  provenance: EvidenceProvenance;
+  source_phase: number;
+  source_entity_type: string;
+  source_entity_id?: string | null;
+  title: string;
+  description?: string | null;
+  data: Record<string, unknown>;
+  content_sha256: string;
+  created_at: string;
+}
+
+export interface EvidenceBundle {
+  bundle_id: string;
+  investigation_id: string;
+  generated_at: string;
+  verdict: string;
+  bundle_sha256: string;
+  investigation?: Record<string, unknown> | null;
+  repository?: Record<string, unknown> | null;
+  reproduction?: Record<string, unknown> | null;
+  hypothesis?: Record<string, unknown> | null;
+  regression?: Record<string, unknown> | null;
+  patch?: Record<string, unknown> | null;
+  verification?: Record<string, unknown> | null;
+  evidence_items: EvidenceItem[];
+}
+
+export interface EvidenceHashResponse {
+  investigation_id: string;
+  bundle_sha256: string;
+  generated_at: string;
+}
+
 
 
 

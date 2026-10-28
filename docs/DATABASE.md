@@ -133,6 +133,26 @@ Append-only double validation execution evidence capturing patch application, re
 - `idx_patch_verification_runs_candidate`: `(patch_candidate_id)`
 - `idx_patch_verification_runs_regression`: `(regression_test_id)`
 
+### 2.7 `investigation_evidence` (Added in Phase 7)
+Append-only immutable record of all individual evidence items across the entire investigation lifecycle.
+- `id` (UUID, PK, default `gen_random_uuid()`)
+- `investigation_id` (UUID, FK -> `investigations(id) ON DELETE CASCADE`, NOT NULL)
+- `evidence_type` (TEXT, NOT NULL)
+- `provenance` (TEXT, NOT NULL)
+- `source_phase` (INTEGER, NOT NULL)
+- `source_entity_type` (TEXT, NOT NULL)
+- `source_entity_id` (UUID, NOT NULL)
+- `title` (TEXT, NOT NULL)
+- `description` (TEXT, NOT NULL, default `''`)
+- `data` (JSONB, NOT NULL, default `'{}'::jsonb`)
+- `content_sha256` (TEXT, NOT NULL)
+- `created_at` (TIMESTAMPTZ, default `now()`, NOT NULL)
+
+**Indexes:**
+- `idx_investigation_evidence_investigation_created`: `(investigation_id, created_at DESC)`
+- `idx_investigation_evidence_type`: `(investigation_id, evidence_type)`
+- `idx_investigation_evidence_source`: `(source_entity_type, source_entity_id)`
+
 ---
 
 ## 3. Row Level Security Policies
@@ -144,4 +164,5 @@ Every table has RLS enabled.
 - `investigations`: Users can access investigations belonging to their repositories.
 - `investigation_events`: Users can view and insert events only for investigations belonging to their repositories.
 - `patch_verification_runs`: Users can view verification evidence only for investigations belonging to their projects (`investigation -> project -> auth.uid() = user_id`).
+- `investigation_evidence`: Users can select and insert evidence only for investigations belonging to their projects. Strict append-only design: **no UPDATE or DELETE policies exist** on this table.
 - Insecure open policies (`USING (true)`) are strictly forbidden across all tables.

@@ -146,7 +146,26 @@ Phase 7: End-to-End Evaluation & Hardening
 - Frontend UI with dedicated Phase 6 card, 3-step validation grid, execution output inspection, and full 9-step Evidence Chain Visualizer clearly separating AI PROPOSAL from DETERMINISTIC EVIDENCE.
 - Comprehensive unit and integration test suite covering happy paths, negative paths (regression still failing, baseline failing, timeout), source integrity, and precondition enforcement.
 
-### Phase 7 — End-to-End Evaluation & Hardening
-- SWE-bench or custom benchmark evaluation.
-- Rate limiting, audit logging, and sandbox hardening.
-- Production deployment configuration.
+### Phase 7 — Evidence Bundle, Provenance & Audit System (Completed)
+- Aggregated cryptographic audit chain across Phases 1–6 into a coherent, immutable EVIDA Evidence Bundle.
+- Core maxim enforced:
+  - `AI_OUTPUT -> PROPOSAL` (never execution proof)
+  - `DETERMINISTIC_EXECUTION -> EVIDENCE`
+  - `EVIDENCE -> VERDICT`
+- Strict provenance taxonomy:
+  - `AI_PROPOSAL`: Untrusted AI hypotheses, regression test proposals, and patch proposals.
+  - `DETERMINISTIC_EXECUTION`: Sandboxed command outputs, exit codes, and test results.
+  - `CRYPTOGRAPHIC_INTEGRITY`: Archive, patch, and bundle SHA-256 digests.
+  - `SYSTEM_METADATA`: Canonical timestamps, IDs, and versions.
+  - `AUDIT_EVENT`: Append-only event trail records.
+- 14 explicit evidence types (`INCIDENT`, `REPOSITORY`, `REPRODUCTION`, `HYPOTHESIS`, `REGRESSION_TEST`, `REGRESSION_PROOF`, `PATCH_PROPOSAL`, `PATCH_VALIDATION`, `PATCH_APPLICATION`, `REGRESSION_VERIFICATION`, `BASELINE_VERIFICATION`, `SOURCE_INTEGRITY`, `FINAL_VERDICT`, `AUDIT`).
+- Database migration `20261027070000_evidence_bundle.sql` with append-only RLS (`FOR SELECT` and `FOR INSERT` only, no `UPDATE`/`DELETE`).
+- Deterministic SHA-256 calculation for individual evidence items and the complete bundle (`bundle_sha256`).
+- Automatic multi-layered secret scrubbing and XSS sanitization across all evidence strings and dictionary payloads.
+- REST API endpoints:
+  - `GET /api/v1/investigations/{id}/evidence`: Retrieves complete structured bundle.
+  - `GET /api/v1/investigations/{id}/evidence/items`: Retrieves individual evidence items.
+  - `GET /api/v1/investigations/{id}/evidence/hash`: Quick cryptographic hash verification.
+  - `GET /api/v1/investigations/{id}/evidence/export`: Downloads formatted JSON file attachment (`Content-Disposition: attachment`).
+- Frontend UI with Phase 7 card, bundle SHA-256 bar, provenance taxonomy legend, authoritative double-validation confirmation checklist, and itemized evidence timeline.
+- Comprehensive unit and integration test suite (secret scrubbing, hash determinism, mutation sensitivity, fast generation <500ms, multi-tenant isolation, export attachment headers).

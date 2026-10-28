@@ -62,10 +62,11 @@ class ReproductionService:
         investigation_id: UUID,
         filename: str,
         content: bytes,
+        user_id: str | None = None,
     ) -> RepositoryResponse:
         """Validate and ingest a repository archive, advancing investigation state to INGESTING."""
-        # 1. Verify investigation exists
-        inv = await self.investigation_service.get_investigation(investigation_id)
+        # 1. Verify investigation exists and belongs to user
+        inv = await self.investigation_service.get_investigation(investigation_id, user_id=user_id)
 
         # 2. Securely validate archive prior to storing
         validated_meta = validate_zip_archive(content, filename, self.settings)
@@ -127,10 +128,12 @@ class ReproductionService:
             updated_at=saved_repo.updated_at,
         )
 
-    async def get_repository(self, investigation_id: UUID) -> RepositoryResponse:
+    async def get_repository(
+        self, investigation_id: UUID, user_id: str | None = None
+    ) -> RepositoryResponse:
         """Fetch repository metadata for an investigation."""
-        # Ensure investigation exists
-        await self.investigation_service.get_investigation(investigation_id)
+        # Ensure investigation exists and belongs to user
+        await self.investigation_service.get_investigation(investigation_id, user_id=user_id)
 
         repo = await self.repo.get_repository_by_investigation_id(investigation_id)
         if repo is None:
@@ -156,9 +159,10 @@ class ReproductionService:
         investigation_id: UUID,
         command: str,
         force_rerun: bool = False,
+        user_id: str | None = None,
     ) -> ReproductionRunResponse:
         """Execute the reproduction command in an isolated ephemeral workspace and persist evidence."""
-        inv = await self.investigation_service.get_investigation(investigation_id)
+        inv = await self.investigation_service.get_investigation(investigation_id, user_id=user_id)
 
         repo_meta = await self.repo.get_repository_by_investigation_id(investigation_id)
         if repo_meta is None or not repo_meta.storage_path:
@@ -292,9 +296,11 @@ class ReproductionService:
             )
             return self._to_run_response(run_record)
 
-    async def get_reproduction(self, investigation_id: UUID) -> ReproductionRunResponse:
+    async def get_reproduction(
+        self, investigation_id: UUID, user_id: str | None = None
+    ) -> ReproductionRunResponse:
         """Fetch latest reproduction run result for an investigation."""
-        await self.investigation_service.get_investigation(investigation_id)
+        await self.investigation_service.get_investigation(investigation_id, user_id=user_id)
 
         run = await self.repo.get_reproduction_run_by_investigation_id(investigation_id)
         if run is None:

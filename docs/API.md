@@ -694,6 +694,116 @@ Retrieves historical verification run records in descending chronological order.
 - `SOURCE_INTEGRITY_VIOLATION`: The stored repository archive SHA-256 changed during verification.
 - `UNEXPECTED_WORKSPACE_CHANGE`: Patch application modified files outside the declared scope or modified test directories.
 
+---
+
+### 3.12 Evidence Bundle & Audit Endpoints (Phase 7)
+
+#### Get Complete Evidence Bundle
+`GET /api/v1/investigations/{investigation_id}/evidence`
+
+Retrieves the complete immutable EVIDA Evidence Bundle aggregating all artifacts, execution traces, cryptographic hashes, and audit events across Phases 1–6.
+
+**Response (200 OK):**
+```json
+{
+  "investigation_id": "33333333-3333-3333-3333-333333333333",
+  "bundle_sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9",
+  "generated_at": "2026-10-28T10:15:45Z",
+  "verdict": "VERIFIED",
+  "investigation": {
+    "id": "33333333-3333-3333-3333-333333333333",
+    "status": "COMPLETED",
+    "issue_title": "Fix division bug",
+    "issue_description": "divide(10, 2) returns 20 instead of 5",
+    "created_at": "2026-10-28T10:00:00Z"
+  },
+  "evidence_items": [
+    {
+      "id": "11111111-1111-1111-1111-111111111111",
+      "investigation_id": "33333333-3333-3333-3333-333333333333",
+      "evidence_type": "INCIDENT",
+      "provenance": "SYSTEM_METADATA",
+      "source_phase": 1,
+      "source_entity_type": "investigations",
+      "source_entity_id": "33333333-3333-3333-3333-333333333333",
+      "title": "Incident Bug Report",
+      "description": "User-reported defect and initial investigation metadata.",
+      "data": { "issue_title": "Fix division bug" },
+      "content_sha256": "a1b2c3d4e5f678901234567890abcdef1234567890abcdef1234567890abcdef",
+      "created_at": "2026-10-28T10:00:00Z"
+    }
+  ],
+  "audit_trail": [
+    {
+      "event_type": "INVESTIGATION_CREATED",
+      "created_at": "2026-10-28T10:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+#### Get Chronological Evidence Items
+`GET /api/v1/investigations/{investigation_id}/evidence/items`
+
+Retrieves individual `EvidenceItem` records sorted chronologically.
+
+**Response (200 OK):**
+```json
+[
+  {
+    "id": "11111111-1111-1111-1111-111111111111",
+    "investigation_id": "33333333-3333-3333-3333-333333333333",
+    "evidence_type": "INCIDENT",
+    "provenance": "SYSTEM_METADATA",
+    "source_phase": 1,
+    "title": "Incident Bug Report",
+    "content_sha256": "a1b2c3d4e5f6...",
+    "created_at": "2026-10-28T10:00:00Z"
+  }
+]
+```
+
+---
+
+#### Get Evidence Bundle Hash
+`GET /api/v1/investigations/{investigation_id}/evidence/hash`
+
+Lightweight hash verification endpoint returning canonical SHA-256 and item count without transmitting full raw outputs.
+
+**Response (200 OK):**
+```json
+{
+  "investigation_id": "33333333-3333-3333-3333-333333333333",
+  "bundle_sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9",
+  "item_count": 12,
+  "verdict": "VERIFIED",
+  "generated_at": "2026-10-28T10:15:45Z"
+}
+```
+
+---
+
+#### Export Evidence Bundle (.json)
+`GET /api/v1/investigations/{investigation_id}/evidence/export`
+
+Downloads the formatted JSON bundle as a file attachment.
+
+**Headers:**
+- `Content-Type: application/json`
+- `Content-Disposition: attachment; filename="evida-evidence-33333333-3333-3333-3333-333333333333.json"`
+
+---
+
+### 3.13 Provenance Classification Taxonomy
+All evidence items carry an authoritative provenance tag:
+- `AI_PROPOSAL`: Untrusted AI inference output (hypotheses, tests, patches).
+- `DETERMINISTIC_EXECUTION`: Sandboxed command execution outputs, exit codes, test passes/fails.
+- `CRYPTOGRAPHIC_INTEGRITY`: SHA-256 archive digests, file content hashes, bundle signatures.
+- `SYSTEM_METADATA`: Canonical system IDs, timestamps, prompt and model versions.
+- `AUDIT_EVENT`: Append-only audit trail records.
+
 
 
 

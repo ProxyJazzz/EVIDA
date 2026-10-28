@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     # Server configuration
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8000
+    CORS_ORIGINS: list[str] = Field(
+        default_factory=lambda: ["http://localhost:3000", "http://127.0.0.1:3000"],
+        description="Allowed CORS origins in production",
+    )
 
     # Supabase credentials (optional during offline dev/test)
     SUPABASE_URL: str | None = Field(default=None, description="Supabase project URL")

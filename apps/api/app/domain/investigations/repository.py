@@ -14,6 +14,7 @@ from uuid import UUID
 
 from app.core.config import Settings
 from app.core.logging import get_logger
+from app.domain.evidence.models import EvidenceItem
 from app.domain.investigations.models import (
     EventType,
     Investigation,
@@ -175,6 +176,17 @@ class InvestigationRepository(Protocol):
         """Retrieve patch verification run by primary key UUID."""
         ...
 
+    # Phase 7: Evidence Items Persistence
+    async def save_evidence_items(self, items: list[EvidenceItem]) -> list[EvidenceItem]:
+        """Atomically persist append-only evidence items for an investigation."""
+        ...
+
+    async def get_evidence_items_by_investigation_id(
+        self, investigation_id: UUID
+    ) -> list[EvidenceItem]:
+        """Retrieve all persisted evidence items for an investigation."""
+        ...
+
 
 class InMemoryInvestigationRepository:
     """Thread-safe, transaction-consistent in-memory repository for local dev and testing."""
@@ -199,6 +211,7 @@ class InMemoryInvestigationRepository:
         self._patch_verification_runs: dict[
             UUID, list[PatchVerificationRun]
         ] = {}  # keyed by investigation_id
+        self._evidence_items: dict[UUID, list[EvidenceItem]] = {}  # keyed by investigation_id
         self._archives: dict[str, bytes] = {}
         self._seed_default_data()
 
@@ -513,6 +526,35 @@ class InMemoryInvestigationRepository:
                     if run.id == run_id:
                         return copy.copy(run)
             return None
+
+    async def save_evidence_items(self, items: list[EvidenceItem]) -> list[EvidenceItem]:
+        async with self._lock:
+            saved: list[EvidenceItem] = []
+            for item in items:
+                if item.investigation_id not in self._evidence_items:
+                    self._evidence_items[item.investigation_id] = []
+                existing_hashes = {
+                    e.content_sha256 for e in self._evidence_items[item.investigation_id]
+                }
+                if item.content_sha256 not in existing_hashes:
+                    self._evidence_items[item.investigation_id].append(item)
+                    saved.append(item)
+                else:
+                    # Return existing item
+                    match = next(
+                        e
+                        for e in self._evidence_items[item.investigation_id]
+                        if e.content_sha256 == item.content_sha256
+                    )
+                    saved.append(match)
+            return [copy.copy(i) for i in saved]
+
+    async def get_evidence_items_by_investigation_id(
+        self, investigation_id: UUID
+    ) -> list[EvidenceItem]:
+        async with self._lock:
+            items = self._evidence_items.get(investigation_id, [])
+            return [copy.copy(i) for i in items]
 
 
 _memory_repo_instance: InMemoryInvestigationRepository | None = None

@@ -62,15 +62,11 @@ class PatchService:
         self.ai_provider = ai_provider
         self.settings = settings
 
-    async def get_patch_candidate(self, investigation_id: UUID) -> PatchCandidateResponse:
+    async def get_patch_candidate(
+        self, investigation_id: UUID, user_id: str | None = None
+    ) -> PatchCandidateResponse:
         """Retrieve the latest patch candidate for an investigation."""
-        inv = await self.repo.get_by_id(investigation_id)
-        if not inv:
-            raise LifecycleException(
-                f"Investigation '{investigation_id}' not found.",
-                code="INVESTIGATION_NOT_FOUND",
-                status_code=404,
-            )
+        await self.investigation_service.get_investigation(investigation_id, user_id=user_id)
 
         patch = await self.repo.get_patch_candidate_by_investigation_id(investigation_id)
         if not patch:
@@ -93,6 +89,7 @@ class PatchService:
         self,
         investigation_id: UUID,
         force_regenerate: bool = False,
+        user_id: str | None = None,
     ) -> PatchCandidateResponse:
         """Main Phase 5 entrypoint: assemble context, generate candidate patch, and validate.
 
@@ -100,13 +97,7 @@ class PatchService:
         Source code remains completely unpatched and unmodified.
         """
         # 1. Precondition checks
-        inv = await self.repo.get_by_id(investigation_id)
-        if not inv:
-            raise LifecycleException(
-                f"Investigation '{investigation_id}' not found.",
-                code="INVESTIGATION_NOT_FOUND",
-                status_code=404,
-            )
+        inv = await self.investigation_service.get_investigation(investigation_id, user_id=user_id)
 
         if inv.status != InvestigationStatus.VERIFYING:
             raise LifecycleException(

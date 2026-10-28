@@ -72,8 +72,11 @@ class RegressionService:
         self.ai_provider = ai_provider
         self.settings = settings
 
-    async def get_regression_test(self, investigation_id: UUID) -> RegressionTestResponse | None:
+    async def get_regression_test(
+        self, investigation_id: UUID, user_id: str | None = None
+    ) -> RegressionTestResponse | None:
         """Retrieve the latest regression test and its verification result."""
+        await self.investigation_service.get_investigation(investigation_id, user_id=user_id)
         test_record = await self.repo.get_regression_test_by_investigation_id(investigation_id)
         if not test_record:
             return None
@@ -87,6 +90,7 @@ class RegressionService:
         self,
         investigation_id: UUID,
         force_regenerate: bool = False,
+        user_id: str | None = None,
     ) -> RegressionTestResponse:
         """Main Phase 4 entrypoint: generate test, validate AST/path, and verify in sandbox.
 
@@ -95,13 +99,7 @@ class RegressionService:
             force_regenerate is False, returns the existing record immediately.
         """
         # 1. Precondition checks
-        inv = await self.repo.get_by_id(investigation_id)
-        if not inv:
-            raise LifecycleException(
-                f"Investigation '{investigation_id}' not found.",
-                code="INVESTIGATION_NOT_FOUND",
-                status_code=404,
-            )
+        inv = await self.investigation_service.get_investigation(investigation_id, user_id=user_id)
 
         if (
             inv.status != InvestigationStatus.INVESTIGATING

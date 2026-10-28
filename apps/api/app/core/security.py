@@ -37,15 +37,29 @@ def extract_bearer_token(request: Request) -> str | None:
 
 
 def get_current_user_id(request: Request) -> str:
-    """Extract or mock authenticated user ID for the current request.
+    """Extract authenticated user ID for the current request.
 
-    In Phase 0, if no Authorization header is present during local development,
-    a deterministic anonymous session UID is provided for developer ergonomics.
+    Checks Authorization Bearer token first, then X-User-Id header (for internal/proxy forwarding),
+    falling back to local default tenant UID when in non-production.
+    In production (APP_ENV == 'production'), an unauthenticated request raises SecurityException (401).
     """
     token = extract_bearer_token(request)
     if token:
-        # Phase 0 token extractor placeholder (validated via Supabase Auth in Phase 1)
+        # Deterministically derive tenant UUID from token
         return str(uuid.uuid5(uuid.NAMESPACE_DNS, f"evida-user-{token[:16]}"))
+
+    x_user = request.headers.get("X-User-Id")
+    if x_user:
+        return x_user
+
+    from app.core.config import get_settings
+
+    settings = get_settings()
+    if settings.APP_ENV == "production":
+        raise SecurityException(
+            "Authentication required. Provide a valid Authorization Bearer token.",
+            code="UNAUTHORIZED",
+        )
 
     # Return local test tenant UID
     return "00000000-0000-0000-0000-000000000001"

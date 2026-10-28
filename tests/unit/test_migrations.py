@@ -151,3 +151,27 @@ def test_patch_verification_runs_migration_exists_and_valid():
     assert "idx_patch_verification_runs_verdict" in content
     assert "USING (true)" not in content
     assert "WITH CHECK (true)" not in content
+
+
+def test_investigation_evidence_migration_exists_and_valid():
+    ev_migration = (
+        PROJECT_ROOT / "supabase" / "migrations" / "20261027070000_evidence_bundle.sql"
+    )
+    assert ev_migration.exists(), (
+        "Phase 7 investigation evidence migration file must exist"
+    )
+    content = ev_migration.read_text(encoding="utf-8")
+
+    assert "public.investigation_evidence" in content
+    assert (
+        "ALTER TABLE public.investigation_evidence ENABLE ROW LEVEL SECURITY;"
+        in content
+    )
+    assert "idx_investigation_evidence_investigation_created" in content
+    assert "idx_investigation_evidence_type" in content
+    assert "idx_investigation_evidence_source_entity" in content
+    assert "USING (true)" not in content
+    assert "WITH CHECK (true)" not in content
+    # Ensure append-only by verifying no UPDATE or DELETE policies
+    assert "FOR UPDATE" not in content
+    assert "FOR DELETE" not in content

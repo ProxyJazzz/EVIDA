@@ -28,6 +28,7 @@ from app.domain.investigations.state_machine import (
     TERMINAL_STATES,
     InvestigationAlreadyTerminalError,
     InvestigationNotFoundError,
+    InvestigationPermissionDeniedError,
     validate_transition,
 )
 
@@ -87,14 +88,20 @@ class InvestigationService:
         )
         return self._to_response(persisted)
 
-    async def get_investigation(self, investigation_id: UUID) -> InvestigationResponse:
-        """Retrieve an investigation by UUID or raise InvestigationNotFoundError."""
+    async def get_investigation(
+        self, investigation_id: UUID, user_id: str | None = None
+    ) -> InvestigationResponse:
+        """Retrieve an investigation by UUID or raise InvestigationNotFoundError/PermissionDenied."""
         inv = await self.repo.get_by_id(investigation_id)
         if inv is None:
             raise InvestigationNotFoundError(str(investigation_id))
+        if user_id is not None and inv.user_id and inv.user_id != user_id:
+            raise InvestigationPermissionDeniedError(str(investigation_id))
         return self._to_response(inv)
 
-    async def start_investigation(self, investigation_id: UUID) -> InvestigationResponse:
+    async def start_investigation(
+        self, investigation_id: UUID, user_id: str | None = None
+    ) -> InvestigationResponse:
         """Start investigation by transitioning from CREATED to INGESTING.
 
         Idempotency:
@@ -105,6 +112,8 @@ class InvestigationService:
         inv = await self.repo.get_by_id(investigation_id)
         if inv is None:
             raise InvestigationNotFoundError(str(investigation_id))
+        if user_id is not None and inv.user_id and inv.user_id != user_id:
+            raise InvestigationPermissionDeniedError(str(investigation_id))
 
         # Check if already terminal
         if inv.status in TERMINAL_STATES:
@@ -204,11 +213,15 @@ class InvestigationService:
         await self.repo.record_event(investigation_id, event)
         return event
 
-    async def get_events(self, investigation_id: UUID) -> InvestigationEventsResponse:
+    async def get_events(
+        self, investigation_id: UUID, user_id: str | None = None
+    ) -> InvestigationEventsResponse:
         """Return ordered timeline of lifecycle events for an investigation."""
         inv = await self.repo.get_by_id(investigation_id)
         if inv is None:
             raise InvestigationNotFoundError(str(investigation_id))
+        if user_id is not None and inv.user_id and inv.user_id != user_id:
+            raise InvestigationPermissionDeniedError(str(investigation_id))
 
         events = await self.repo.get_events(investigation_id)
         items = [

@@ -476,6 +476,39 @@ repository_sha256_before == repository_sha256_after
 ```
 All patch application and test suite execution occurs strictly within isolated ephemeral workspaces (`tempfile.TemporaryDirectory`). If the archive's SHA-256 changes at any point during verification, `SOURCE_INTEGRITY_VIOLATION` is triggered and the run fails immediately.
 
+---
+
+## 10. Phase 7 Evidence Bundle, Provenance & Audit System
+
+### 10.1 System Maxim & Axiomatic Pipeline
+```text
+AI PROPOSES
+    ↓ (Untrusted)
+DETERMINISTIC EXECUTION
+    ↓ (Sandboxed Proof)
+EVIDENCE BUNDLE
+    ↓ (Cryptographically Bound)
+VERDICT (VERIFIED / UNVERIFIED)
+```
+
+EVIDA strictly disallows `AI_OUTPUT -> EVIDENCE`. AI responses are always categorized as `AI_PROPOSAL`.
+
+### 10.2 Provenance Taxonomy
+Each evidence item carries an immutable provenance classification:
+- `AI_PROPOSAL`: Root cause hypotheses, synthesized regression tests, and candidate unified diffs.
+- `DETERMINISTIC_EXECUTION`: Subprocess exit codes, wall-clock durations, stdout/stderr streams, and AST validation results.
+- `CRYPTOGRAPHIC_INTEGRITY`: SHA-256 digests of repository archives, patch unified diffs, and individual evidence items.
+- `SYSTEM_METADATA`: Canonical timestamps, investigation and entity UUIDs, model identifiers, and prompt version tags.
+- `AUDIT_EVENT`: Append-only lifecycle transition log events.
+
+### 10.3 Cryptographic Bundle Integrity
+The evidence bundle computes a canonical SHA-256 hash across all sorted, scrubbed evidence items:
+```text
+bundle_sha256 = sha256(canonical_json(sorted_items))
+```
+Any post-hoc alteration of an output or timestamp mutates the bundle digest, providing a tamper-evident audit record suitable for high-assurance code review.
+
+
 
 
 

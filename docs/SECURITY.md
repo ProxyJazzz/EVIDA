@@ -227,5 +227,29 @@ Double validation requires:
 3. Cryptographic source integrity must hold.
 If any condition fails, the verdict is deterministically `UNVERIFIED`.
 
+---
+
+## 10. Phase 7 Evidence Bundle, Provenance & Audit Security
+
+### 10.1 Zero AI Discretion in Evidence Generation
+The evidence bundle is compiled entirely through deterministic queries against persisted system records. Under no circumstances is an AI model called during bundle generation or export.
+
+### 10.2 Provenance Separation
+To eliminate AI hallucination from the security boundary:
+- AI hypotheses, generated tests, and patch proposals are tagged strictly as `AI_PROPOSAL` (untrusted).
+- Only sandbox execution records (exit codes, run durations, stdout/stderr) are tagged `DETERMINISTIC_EXECUTION`.
+- Repository archives, diff hashes, and the complete bundle are cryptographically bound via SHA-256 (`CRYPTOGRAPHIC_INTEGRITY`).
+
+### 10.3 Append-Only Database Guarantees
+The `investigation_evidence` database table implements strict append-only constraints:
+- Only `SELECT` and `INSERT` RLS policies are provisioned in PostgreSQL.
+- No `UPDATE` or `DELETE` policies exist. Even authenticated tenants cannot mutate or delete historical evidence records.
+
+### 10.4 Secret Scrubbing & XSS Defense
+Before serializing or returning evidence bundles:
+- Multi-layered regex patterns scrub authorization bearer tokens, JWT strings, API keys (`NEBIUS_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`), and secret environment variables from all strings and nested dictionaries.
+- All untrusted execution outputs and diff contents are sanitized against XSS attacks before rendering in the web interface.
+
+
 
 

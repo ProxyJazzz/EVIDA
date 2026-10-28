@@ -40,9 +40,11 @@ def create_app() -> FastAPI:
     )
 
     # CORS configuration
+    cors_origins = ["*"] if settings.APP_ENV != "production" else settings.CORS_ORIGINS
+    cors_origins = ["*"] if settings.APP_ENV != "production" else settings.CORS_ORIGINS
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # Restrict to trusted origins in production
+        allow_origins=cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

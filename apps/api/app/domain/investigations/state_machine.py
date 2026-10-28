@@ -29,6 +29,15 @@ class InvestigationNotFoundError(LifecycleException):
         )
 
 
+class InvestigationPermissionDeniedError(LifecycleException):
+    def __init__(self, investigation_id: str) -> None:
+        super().__init__(
+            message=f"Investigation '{investigation_id}' does not belong to authenticated user/tenant.",
+            code="INVESTIGATION_PERMISSION_DENIED",
+            status_code=403,
+        )
+
+
 class InvalidStateTransitionError(LifecycleException):
     def __init__(
         self,
