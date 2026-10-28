@@ -564,5 +564,130 @@ Same as `POST /patch` response body.
 - `AI_RESPONSE_INVALID` (502): AI provider returned unparseable non-JSON text.
 - `AI_PROVIDER_UNAVAILABLE` (503): Nebius AI API timeout or connectivity failure.
 
+---
+
+### 3.10 Phase 6 Deterministic Double Validation Endpoints
+
+#### Execute Deterministic Double Validation
+`POST /api/v1/investigations/{investigation_id}/verify-patch`
+
+Executes deterministic double validation on the latest candidate patch inside an isolated ephemeral workspace. Reruns the proven regression test (Validation 1) and the repository baseline test suite (Validation 2). Verifies cryptographic source repository immutability.
+
+**Preconditions:**
+1. Investigation status must be `VERIFYING`.
+2. Valid stored repository archive exists.
+3. Reproduction status is `REPRODUCED`.
+4. Causal hypothesis exists.
+5. Proven regression test exists with status `REGRESSION_PROVEN`.
+6. Validated candidate patch exists with status `VALIDATED`.
+
+**Response (200 OK — Verified):**
+```json
+{
+  "id": "66666666-6666-6666-6666-666666666666",
+  "investigation_id": "33333333-3333-3333-3333-333333333333",
+  "patch_candidate_id": "55555555-5555-5555-5555-555555555555",
+  "regression_test_id": "99999999-9999-9999-9999-999999999999",
+  "status": "VERIFIED",
+  "verdict": "VERIFIED",
+  "failure_classification": null,
+  "patch_sha256": "3cb15bf6476e313ff83a2fc9aa30023069b2bebead8772a1548e6788db3d0407",
+  "repository_sha256": "fa4aec473a843aa4d3a2df0840c192a2e28526c6f5d146b0ae7b7fabaf5280a9",
+  "patch_application": {
+    "status": "APPLIED",
+    "exit_code": 0,
+    "stdout": "Applied cleanly to src/calculator.py",
+    "stderr": "",
+    "duration_ms": 12.5,
+    "modified_files": ["src/calculator.py"],
+    "created_files": [],
+    "deleted_files": []
+  },
+  "regression_execution": {
+    "status": "PASSED",
+    "command": "pytest tests/test_regression.py",
+    "exit_code": 0,
+    "stdout": "1 passed in 0.08s",
+    "stderr": "",
+    "duration_ms": 82.5
+  },
+  "baseline_execution": {
+    "status": "PASSED",
+    "command": "pytest",
+    "exit_code": 0,
+    "stdout": "1 passed in 0.09s",
+    "stderr": "",
+    "duration_ms": 91.0
+  },
+  "workspace_file_manifest": {
+    "src/calculator.py": "a6b7...",
+    "pyproject.toml": "682c..."
+  },
+  "source_integrity_verified": true,
+  "created_at": "2026-10-28T10:15:30Z",
+  "completed_at": "2026-10-28T10:15:32Z"
+}
+```
+
+---
+
+#### Get Latest Verification Evidence
+`GET /api/v1/investigations/{investigation_id}/verification`
+
+Retrieves the latest execution verification run for the investigation.
+
+**Response (200 OK):**
+Same structure as `POST /verify-patch`.
+
+**Response (404 Not Found):**
+```json
+{
+  "error": {
+    "code": "VERIFICATION_RUN_NOT_FOUND",
+    "message": "No verification evidence found for investigation '33333333-3333-3333-3333-333333333333'.",
+    "request_id": "4167831d-cb56-46b0-b616-6714138a77c7"
+  }
+}
+```
+
+---
+
+#### List All Verification Runs
+`GET /api/v1/investigations/{investigation_id}/verifications`
+
+Retrieves historical verification run records in descending chronological order.
+
+**Response (200 OK):**
+```json
+[
+  {
+    "id": "66666666-6666-6666-6666-666666666666",
+    "investigation_id": "33333333-3333-3333-3333-333333333333",
+    "status": "VERIFIED",
+    "verdict": "VERIFIED",
+    "failure_classification": null,
+    "source_integrity_verified": true,
+    "created_at": "2026-10-28T10:15:30Z",
+    "completed_at": "2026-10-28T10:15:32Z"
+  }
+]
+```
+
+---
+
+### 3.11 Phase 6 Error Codes
+- `INVESTIGATION_PRECONDITION_FAILED` (400): Missing required Phase 5 artifacts or investigation is not in status `VERIFYING`.
+- `VERIFICATION_RUN_NOT_FOUND` (404): No verification run recorded for the investigation.
+- `PATCH_APPLICATION_FAILED`: Candidate patch failed to apply to the extracted workspace cleanly.
+- `REGRESSION_STILL_FAILING`: Candidate patch applied but the proven regression test continues to fail.
+- `REGRESSION_EXECUTION_ERROR`: Error executing regression test inside the sandbox.
+- `REGRESSION_TIMEOUT`: Regression test execution exceeded timeout threshold.
+- `BASELINE_TEST_FAILURE`: Proven regression test passed, but repository baseline test suite failed.
+- `BASELINE_EXECUTION_ERROR`: Error executing baseline test suite inside the sandbox.
+- `BASELINE_TIMEOUT`: Baseline test suite execution exceeded timeout threshold.
+- `SOURCE_INTEGRITY_VIOLATION`: The stored repository archive SHA-256 changed during verification.
+- `UNEXPECTED_WORKSPACE_CHANGE`: Patch application modified files outside the declared scope or modified test directories.
+
+
 
 

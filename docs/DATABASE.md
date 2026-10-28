@@ -98,6 +98,43 @@ Immutable audit ledger capturing every lifecycle state transition and milestone.
 
 ---
 
+### 2.6 `patch_verification_runs` (Added in Phase 6)
+Append-only double validation execution evidence capturing patch application, regression verification, baseline test suite results, and source integrity proofs.
+- `id` (UUID, PK, default `gen_random_uuid()`)
+- `investigation_id` (UUID, FK -> `investigations(id) ON DELETE CASCADE`, NOT NULL)
+- `patch_candidate_id` (UUID, FK -> `patch_candidates(id) ON DELETE CASCADE`, NOT NULL)
+- `regression_test_id` (UUID, FK -> `investigation_regression_tests(id) ON DELETE CASCADE`, NOT NULL)
+- `status` (TEXT, NOT NULL)
+- `patch_sha256` (TEXT, NOT NULL)
+- `repository_sha256` (TEXT, NOT NULL)
+- `patch_application_status` (TEXT, NOT NULL)
+- `patch_application_exit_code` (INTEGER, nullable)
+- `patch_application_stdout` (TEXT, default `''`)
+- `patch_application_stderr` (TEXT, default `''`)
+- `regression_status` (TEXT, NOT NULL)
+- `regression_exit_code` (INTEGER, nullable)
+- `regression_stdout` (TEXT, default `''`)
+- `regression_stderr` (TEXT, default `''`)
+- `regression_duration_ms` (INTEGER, default `0`)
+- `baseline_status` (TEXT, NOT NULL)
+- `baseline_command` (TEXT, NOT NULL, default `'pytest'`)
+- `baseline_exit_code` (INTEGER, nullable)
+- `baseline_stdout` (TEXT, default `''`)
+- `baseline_stderr` (TEXT, default `''`)
+- `baseline_duration_ms` (INTEGER, default `0`)
+- `verdict` (TEXT, NOT NULL)
+- `failure_classification` (TEXT, nullable)
+- `workspace_file_manifest` (JSONB, default `'{}'::jsonb`)
+- `created_at` (TIMESTAMPTZ, default `now()`, NOT NULL)
+- `completed_at` (TIMESTAMPTZ, default `now()`, NOT NULL)
+
+**Indexes:**
+- `idx_patch_verification_runs_investigation_created`: `(investigation_id, created_at DESC)`
+- `idx_patch_verification_runs_candidate`: `(patch_candidate_id)`
+- `idx_patch_verification_runs_regression`: `(regression_test_id)`
+
+---
+
 ## 3. Row Level Security Policies
 
 Every table has RLS enabled.
@@ -106,4 +143,5 @@ Every table has RLS enabled.
 - `repositories`: Users can access repositories belonging to their projects.
 - `investigations`: Users can access investigations belonging to their repositories.
 - `investigation_events`: Users can view and insert events only for investigations belonging to their repositories.
+- `patch_verification_runs`: Users can view verification evidence only for investigations belonging to their projects (`investigation -> project -> auth.uid() = user_id`).
 - Insecure open policies (`USING (true)`) are strictly forbidden across all tables.

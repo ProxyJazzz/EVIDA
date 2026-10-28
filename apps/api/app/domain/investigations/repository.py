@@ -7,6 +7,7 @@ for offline testing and development, and Supabase integration.
 from __future__ import annotations
 
 import asyncio
+import copy
 from datetime import UTC, datetime
 from typing import Protocol
 from uuid import UUID
@@ -28,6 +29,7 @@ from app.domain.repositories.models import (
     RepositoryStatus,
     ReproductionRun,
 )
+from app.domain.verification.models import PatchVerificationRun
 
 logger = get_logger("evida.investigations.repository")
 
@@ -152,6 +154,27 @@ class InvestigationRepository(Protocol):
         """Retrieve patch candidate by primary key UUID."""
         ...
 
+    # Phase 6: Patch Verification Runs Persistence
+    async def save_patch_verification_run(self, run: PatchVerificationRun) -> PatchVerificationRun:
+        """Persist or update a patch verification run."""
+        ...
+
+    async def get_patch_verification_run_by_investigation_id(
+        self, investigation_id: UUID
+    ) -> PatchVerificationRun | None:
+        """Retrieve latest patch verification run for an investigation."""
+        ...
+
+    async def get_patch_verification_runs_by_investigation_id(
+        self, investigation_id: UUID
+    ) -> list[PatchVerificationRun]:
+        """Retrieve all patch verification runs for an investigation."""
+        ...
+
+    async def get_patch_verification_run_by_id(self, run_id: UUID) -> PatchVerificationRun | None:
+        """Retrieve patch verification run by primary key UUID."""
+        ...
+
 
 class InMemoryInvestigationRepository:
     """Thread-safe, transaction-consistent in-memory repository for local dev and testing."""
@@ -173,6 +196,9 @@ class InMemoryInvestigationRepository:
             UUID, list[RegressionVerificationRun]
         ] = {}  # keyed by investigation_id
         self._patches: dict[UUID, list[PatchCandidateRecord]] = {}  # keyed by investigation_id
+        self._patch_verification_runs: dict[
+            UUID, list[PatchVerificationRun]
+        ] = {}  # keyed by investigation_id
         self._archives: dict[str, bytes] = {}
         self._seed_default_data()
 
@@ -445,6 +471,47 @@ class InMemoryInvestigationRepository:
                 for patch in patches:
                     if patch.id == patch_id:
                         return patch.model_copy()
+            return None
+
+    # Phase 6: Patch Verification Runs Persistence
+    async def save_patch_verification_run(self, run: PatchVerificationRun) -> PatchVerificationRun:
+        async with self._lock:
+            if run.investigation_id not in self._patch_verification_runs:
+                self._patch_verification_runs[run.investigation_id] = []
+            existing = [
+                v for v in self._patch_verification_runs[run.investigation_id] if v.id == run.id
+            ]
+            if existing:
+                self._patch_verification_runs[run.investigation_id] = [
+                    copy.copy(run) if v.id == run.id else v
+                    for v in self._patch_verification_runs[run.investigation_id]
+                ]
+            else:
+                self._patch_verification_runs[run.investigation_id].append(copy.copy(run))
+            return copy.copy(run)
+
+    async def get_patch_verification_run_by_investigation_id(
+        self, investigation_id: UUID
+    ) -> PatchVerificationRun | None:
+        async with self._lock:
+            runs = self._patch_verification_runs.get(investigation_id, [])
+            if not runs:
+                return None
+            return copy.copy(runs[-1])
+
+    async def get_patch_verification_runs_by_investigation_id(
+        self, investigation_id: UUID
+    ) -> list[PatchVerificationRun]:
+        async with self._lock:
+            runs = self._patch_verification_runs.get(investigation_id, [])
+            return [copy.copy(r) for r in runs]
+
+    async def get_patch_verification_run_by_id(self, run_id: UUID) -> PatchVerificationRun | None:
+        async with self._lock:
+            for runs in self._patch_verification_runs.values():
+                for run in runs:
+                    if run.id == run_id:
+                        return copy.copy(run)
             return None
 
 

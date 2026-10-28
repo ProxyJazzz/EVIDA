@@ -11,6 +11,7 @@ from app.api.dependencies import (
     AIInvestigationServiceDep,
     InvestigationServiceDep,
     PatchServiceDep,
+    PatchVerificationServiceDep,
     RegressionServiceDep,
     ReproductionServiceDep,
     UserIdDep,
@@ -29,6 +30,7 @@ from app.domain.repositories.models import (
     ReproductionRequest,
     ReproductionRunResponse,
 )
+from app.domain.verification.models import PatchVerificationResponse
 
 router = APIRouter(prefix="/investigations", tags=["Investigations"])
 
@@ -253,3 +255,42 @@ async def get_patch(
 ) -> PatchCandidateResponse:
     """Retrieve the latest synthesized candidate patch and its deterministic validation result."""
     return await service.get_patch_candidate(investigation_id)
+
+
+@router.post(
+    "/{investigation_id}/verify-patch",
+    response_model=PatchVerificationResponse,
+    summary="Execute deterministic double validation on candidate patch",
+)
+async def verify_patch(
+    investigation_id: UUID,
+    service: PatchVerificationServiceDep,
+) -> PatchVerificationResponse:
+    """Execute candidate patch in an isolated ephemeral workspace with double validation (regression + baseline)."""
+    return await service.verify_patch_candidate(investigation_id)
+
+
+@router.get(
+    "/{investigation_id}/verification",
+    response_model=PatchVerificationResponse,
+    summary="Get latest patch verification run and double validation evidence",
+)
+async def get_latest_verification(
+    investigation_id: UUID,
+    service: PatchVerificationServiceDep,
+) -> PatchVerificationResponse:
+    """Retrieve the latest deterministic patch verification run and objective execution evidence."""
+    return await service.get_latest_verification(investigation_id)
+
+
+@router.get(
+    "/{investigation_id}/verifications",
+    response_model=list[PatchVerificationResponse],
+    summary="List all patch verification runs for investigation",
+)
+async def list_verifications(
+    investigation_id: UUID,
+    service: PatchVerificationServiceDep,
+) -> list[PatchVerificationResponse]:
+    """Retrieve historical verification runs for an investigation."""
+    return await service.list_verifications(investigation_id)

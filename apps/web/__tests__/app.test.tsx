@@ -91,5 +91,14 @@ describe("Frontend Foundation Tests", () => {
     expect(screen.getByText(/UNIFIED DIFF PREVIEW/i)).toBeDefined();
     expect(screen.getByText(/PATCH_VALIDATED ≠ BUG_FIXED/i)).toBeDefined();
     expect(screen.getByText(/Phase 5 Safety Guarantee/i)).toBeDefined();
+
+    // Phase 6: Deterministic Verification & Double Validation
+    expect(screen.getByText(/Phase 6 — Deterministic Verification & Double Validation/i)).toBeDefined();
+    expect(screen.getByText(/Double Validation Rule Satisfied: VERIFIED/i)).toBeDefined();
+    expect(screen.getByText(/Applied successfully/i)).toBeDefined();
+    expect(screen.getByText(/Existing Test Suite/i)).toBeDefined();
+    expect(screen.getAllByText(/The original repository artifact remained unchanged/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/EVIDA Evidence Chain: AI Proposal vs. Deterministic Evidence/i)).toBeDefined();
+    expect(screen.getAllByText(/DETERMINISTIC EVIDENCE/i).length).toBeGreaterThan(0);
   });
 });

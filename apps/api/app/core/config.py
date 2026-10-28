@@ -109,6 +109,28 @@ class Settings(BaseSettings):
         description="Canonical patch generation prompt template version",
     )
 
+    # Phase 6 Deterministic Patch Verification & Double Validation Limits
+    PATCH_APPLICATION_TIMEOUT_SECONDS: float = Field(
+        default=30.0, description="Max timeout for applying candidate patch in seconds"
+    )
+    REGRESSION_VERIFICATION_TIMEOUT_SECONDS: float = Field(
+        default=30.0,
+        description="Max timeout for regression test run after patch in seconds",
+    )
+    BASELINE_VERIFICATION_TIMEOUT_SECONDS: float = Field(
+        default=60.0, description="Max timeout for baseline test suite run in seconds"
+    )
+    MAX_VERIFICATION_OUTPUT_BYTES: int = Field(
+        default=50000,
+        description="Max stdout/stderr bytes captured during verification",
+    )
+    MAX_VERIFICATION_WORKSPACE_BYTES: int = Field(
+        default=50_000_000, description="Max verification workspace size in bytes"
+    )
+    MAX_VERIFICATION_FILES: int = Field(
+        default=1000, description="Max files allowed in verification workspace"
+    )
+
     @property
     def is_supabase_configured(self) -> bool:
         """Return True if required Supabase credentials are provided."""

@@ -60,7 +60,21 @@ export type InvestigationEventType =
   | "PATCH_GENERATION_STARTED"
   | "PATCH_GENERATED"
   | "PATCH_VALIDATED"
-  | "PATCH_REJECTED";
+  | "PATCH_REJECTED"
+  | "PATCH_VERIFICATION_STARTED"
+  | "PATCH_APPLICATION_STARTED"
+  | "PATCH_APPLICATION_COMPLETED"
+  | "PATCH_APPLICATION_FAILED"
+  | "REGRESSION_VERIFICATION_PASSED"
+  | "REGRESSION_VERIFICATION_FAILED"
+  | "BASELINE_VERIFICATION_STARTED"
+  | "BASELINE_VERIFICATION_COMPLETED"
+  | "BASELINE_VERIFICATION_PASSED"
+  | "BASELINE_VERIFICATION_FAILED"
+  | "PATCH_VERIFIED"
+  | "PATCH_UNVERIFIED"
+  | "SOURCE_INTEGRITY_CHECKED"
+  | "SOURCE_INTEGRITY_VIOLATION";
 
 export interface TokenUsage {
   prompt_tokens: number;
@@ -340,6 +354,73 @@ export interface PatchCandidateResponse {
   created_at: string;
   validated_at?: string | null;
 }
+
+export type PatchVerificationStatus =
+  | "PENDING"
+  | "PATCH_APPLIED"
+  | "REGRESSION_RUNNING"
+  | "REGRESSION_PASSED"
+  | "BASELINE_RUNNING"
+  | "VERIFIED"
+  | "UNVERIFIED"
+  | "FAILED";
+
+export type PatchVerificationVerdict = "VERIFIED" | "UNVERIFIED";
+
+export type VerificationFailureClassification =
+  | "PATCH_APPLICATION_FAILED"
+  | "PATCH_APPLICATION_TIMEOUT"
+  | "PATCH_APPLICATION_POLICY_BLOCKED"
+  | "REGRESSION_STILL_FAILING"
+  | "REGRESSION_EXECUTION_ERROR"
+  | "REGRESSION_TIMEOUT"
+  | "REGRESSION_POLICY_BLOCKED"
+  | "BASELINE_TEST_FAILURE"
+  | "BASELINE_EXECUTION_ERROR"
+  | "BASELINE_TIMEOUT"
+  | "BASELINE_POLICY_BLOCKED"
+  | "SOURCE_INTEGRITY_VIOLATION"
+  | "UNEXPECTED_WORKSPACE_CHANGE";
+
+export interface PatchApplicationResult {
+  status: "APPLIED" | "FAILED" | "TIMEOUT" | "POLICY_BLOCKED";
+  exit_code: number;
+  stdout: string;
+  stderr: string;
+  duration_ms: number;
+  modified_files: string[];
+  created_files: string[];
+  deleted_files: string[];
+}
+
+export interface VerificationTestResult {
+  status: "PASSED" | "FAILED" | "ERROR" | "TIMEOUT" | "SKIPPED";
+  command: string;
+  exit_code: number;
+  stdout: string;
+  stderr: string;
+  duration_ms: number;
+}
+
+export interface PatchVerificationResponse {
+  id: string;
+  investigation_id: string;
+  patch_candidate_id: string;
+  regression_test_id: string;
+  status: PatchVerificationStatus;
+  verdict: PatchVerificationVerdict;
+  failure_classification?: VerificationFailureClassification | string | null;
+  patch_sha256: string;
+  repository_sha256: string;
+  patch_application: PatchApplicationResult;
+  regression_execution: VerificationTestResult;
+  baseline_execution: VerificationTestResult;
+  workspace_file_manifest: Record<string, string>;
+  source_integrity_verified: boolean;
+  created_at: string;
+  completed_at: string;
+}
+
 
 
 

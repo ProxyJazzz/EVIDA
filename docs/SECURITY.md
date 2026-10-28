@@ -195,10 +195,37 @@ Any violation immediately triggers `SECURITY_VIOLATION`.
 - Total patch bytes is bounded by `MAX_GENERATED_PATCH_BYTES` (50,000 bytes).
 - Patches modifying files outside the hypothesis-confirmed `affected_files` are rejected with `OUT_OF_SCOPE_CHANGE`.
 
-### 8.8 Architectural Immutability: No Patch Application
-Phase 5 **never applies or executes** candidate patches:
-- Zero calls to `git apply`, `patch`, or filesystem file writers on the source repository.
-- The original repository archive and workspace remain cryptographically identical (proven by SHA-256 snapshots before and after patch generation).
-- Execution is strictly quarantined until Phase 6 in an ephemeral, unprivileged sandbox.
+---
+
+## 9. Phase 6 Deterministic Verification & Double Validation Security
+
+### 9.1 Ephemeral Sandbox Isolation
+All patch application and test suite verification occur strictly within fresh ephemeral temporary directories (`tempfile.TemporaryDirectory`).
+- Workspaces are extracted from the stored repository artifact on demand and destroyed immediately after evidence collection.
+- No repository source code or modified files linger in the environment post-run.
+- Untrusted execution runs under restricted sandbox boundaries with scrubbed environment variables (`NEBIUS_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY` stripped).
+
+### 9.2 The "Source Immutability" Guarantee
+The original source repository is **NEVER** modified.
+- Cryptographic SHA-256 digests are computed immediately before verification and compared with storage post-verification (`repository_sha256_before == repository_sha256_after`).
+- Any mutation of stored archives aborts verification with `SOURCE_INTEGRITY_VIOLATION`.
+
+### 9.3 Workspace Manifest Verification & Scope Enforcement
+After applying the candidate patch inside the isolated sandbox:
+- Pre- and post-application file manifests are hashed and compared.
+- If any file outside the declared `changed_files` is modified, created, or deleted, verification fails with `UNEXPECTED_WORKSPACE_CHANGE`.
+- If any file under `tests/` is modified or deleted, verification fails immediately.
+
+### 9.4 Double Validation Security Maxim
+No verdict is ever derived from AI confidence or prompt responses:
+```python
+AI proposes. Evidence decides.
+```
+Double validation requires:
+1. Proven regression test must pass (`exit 0`).
+2. Baseline test suite must pass (`exit 0`).
+3. Cryptographic source integrity must hold.
+If any condition fails, the verdict is deterministically `UNVERIFIED`.
+
 
 

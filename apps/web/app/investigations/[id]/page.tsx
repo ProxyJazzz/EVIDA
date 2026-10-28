@@ -34,8 +34,46 @@ export default async function InvestigationPage({ params }: InvestigationPagePro
     { label: "INGESTING", status: "completed" },
     { label: "REPRODUCING", status: "completed" },
     { label: "INVESTIGATING", status: "completed" },
-    { label: "VERIFYING", status: "active" },
+    { label: "VERIFYING", status: "completed" },
+    { label: "COMPLETED", status: "active" },
   ];
+
+  const verificationRun = {
+    id: "run-66666666-6666-6666-6666-666666666666",
+    status: "VERIFIED",
+    verdict: "VERIFIED",
+    failure_classification: null,
+    patch_application: {
+      status: "APPLIED",
+      exit_code: 0,
+      stdout: "Applied 1 hunk cleanly to src/calculator.py",
+      stderr: "",
+      duration_ms: 12.4,
+      modified_files: ["src/calculator.py"],
+      created_files: [],
+      deleted_files: [],
+    },
+    regression_execution: {
+      status: "PASSED",
+      command: "pytest tests/test_regression.py",
+      exit_code: 0,
+      stdout: "============================= test session starts ==============================\ntests/test_regression.py .                                               [100%]\n============================== 1 passed in 0.08s ===============================",
+      stderr: "",
+      duration_ms: 82.5,
+    },
+    baseline_execution: {
+      status: "PASSED",
+      command: "pytest",
+      exit_code: 0,
+      stdout: "============================= test session starts ==============================\ntests/test_bug.py .                                                      [100%]\n============================== 1 passed in 0.09s ===============================",
+      stderr: "",
+      duration_ms: 91.0,
+    },
+    repository_sha256: "fa4aec473a843aa4d3a2df0840c192a2e28526c6f5d146b0ae7b7fabaf5280a9",
+    source_integrity_verified: true,
+    created_at: "2026-10-28T10:15:30Z",
+    completed_at: "2026-10-28T10:15:32Z",
+  };
 
   const hypothesis = {
     hypothesis: "The divide function in src/calculator.py multiplies its operands instead of dividing them.",
@@ -606,6 +644,234 @@ export default async function InvestigationPage({ params }: InvestigationPagePro
             <div className="p-3 rounded bg-surface/50 border border-surface-border font-mono text-[11px] text-gray-400">
               <span className="text-amber-400 font-semibold block mb-0.5">Phase 5 Safety Guarantee</span>
               <span>The candidate patch has not mutated the source workspace. Phase 6 will execute the patch and rerun the proven regression test inside an isolated sandbox.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Phase 6 — Deterministic Verification & Double Validation */}
+      <div className="rounded-xl border border-surface-border bg-surface/40 p-6 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-surface-border pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-emerald-950/40 border border-emerald-800/40 text-emerald-400">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-semibold text-white">Phase 6 — Deterministic Verification & Double Validation</h2>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface border border-surface-border text-emerald-400">
+                  PHASE 6
+                </span>
+              </div>
+              <p className="text-xs text-gray-400 font-mono mt-0.5">
+                Isolated sandbox execution. Proven regression test + baseline suite. Zero AI discretion.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <StatusBadge status={verificationRun.status} />
+          </div>
+        </div>
+
+        {/* Double Validation Rule Banner */}
+        <div className="p-4 rounded-lg bg-emerald-950/20 border border-emerald-800/40 font-mono text-xs text-emerald-300/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 font-semibold text-emerald-400">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <span>Double Validation Rule Satisfied: VERIFIED</span>
+            </div>
+            <p className="text-[11px] text-gray-300">
+              The candidate patch was applied in an isolated workspace. The proven regression test passed after patch application. The baseline test suite also passed. The original repository artifact remained unchanged.
+            </p>
+          </div>
+          <div className="text-[11px] text-gray-400 sm:text-right shrink-0">
+            <span className="text-gray-500">Core Maxim:</span>
+            <div className="text-emerald-400 font-bold">AI PROPOSES. EVIDENCE DECIDES.</div>
+          </div>
+        </div>
+
+        {/* 3 Step Validation Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Box 1: Patch Application */}
+          <div className="p-4 rounded-lg bg-background/80 border border-surface-border space-y-3 font-mono text-xs">
+            <div className="flex items-center justify-between border-b border-surface-border pb-2">
+              <span className="text-gray-400 font-semibold flex items-center gap-1.5">
+                <GitPullRequest className="w-4 h-4 text-blue-400" />
+                Patch Application
+              </span>
+              <span className="text-emerald-400 font-bold text-[11px] flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Applied successfully
+              </span>
+            </div>
+            <div className="space-y-1.5 text-[11px]">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Exit Code</span>
+                <span className="text-gray-200 font-bold">0</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Duration</span>
+                <span className="text-gray-200">{verificationRun.patch_application.duration_ms} ms</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Sandbox</span>
+                <span className="text-emerald-400 font-semibold">Fresh Ephemeral</span>
+              </div>
+              <div>
+                <span className="text-gray-500 block mb-1">Modified Files:</span>
+                <span className="text-blue-300 bg-surface/80 px-2 py-0.5 rounded border border-surface-border text-[10px]">
+                  src/calculator.py
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Box 2: Regression Verification (Validation 1) */}
+          <div className="p-4 rounded-lg bg-background/80 border border-surface-border space-y-3 font-mono text-xs">
+            <div className="flex items-center justify-between border-b border-surface-border pb-2">
+              <span className="text-gray-400 font-semibold flex items-center gap-1.5">
+                <TestTube2 className="w-4 h-4 text-amber-400" />
+                Original Regression
+              </span>
+              <span className="text-emerald-400 font-bold text-[11px] flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                PASS
+              </span>
+            </div>
+            <div className="space-y-1.5 text-[11px]">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Before Patch</span>
+                <span className="text-rose-400 font-bold">FAIL</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">After Patch</span>
+                <span className="text-emerald-400 font-bold">PASS</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Duration</span>
+                <span className="text-gray-200">{verificationRun.regression_execution.duration_ms} ms</span>
+              </div>
+              <div className="flex justify-between truncate">
+                <span className="text-gray-500">Command</span>
+                <span className="text-gray-300 text-[10px]">{verificationRun.regression_execution.command}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Box 3: Baseline Suite Verification (Validation 2) */}
+          <div className="p-4 rounded-lg bg-background/80 border border-surface-border space-y-3 font-mono text-xs">
+            <div className="flex items-center justify-between border-b border-surface-border pb-2">
+              <span className="text-gray-400 font-semibold flex items-center gap-1.5">
+                <Terminal className="w-4 h-4 text-emerald-400" />
+                Existing Test Suite
+              </span>
+              <span className="text-emerald-400 font-bold text-[11px] flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                PASS
+              </span>
+            </div>
+            <div className="space-y-1.5 text-[11px]">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Baseline Suite</span>
+                <span className="text-emerald-400 font-bold">PASS</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Injected Test</span>
+                <span className="text-gray-300">Cleanly Removed</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Duration</span>
+                <span className="text-gray-200">{verificationRun.baseline_execution.duration_ms} ms</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Command</span>
+                <span className="text-gray-300 text-[10px]">{verificationRun.baseline_execution.command}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Cryptographic Source Integrity & Execution Logs */}
+        <div className="space-y-4">
+          {/* Source Integrity Bar */}
+          <div className="p-3 rounded-lg bg-surface/50 border border-surface-border font-mono text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span className="text-gray-300 font-semibold">Cryptographic Source Integrity:</span>
+              <span className="text-emerald-400 font-bold">The original repository artifact remained unchanged.</span>
+            </div>
+            <div className="text-[11px] text-gray-400 flex items-center gap-2">
+              <span>SHA-256:</span>
+              <span className="text-gray-300 bg-background px-2 py-0.5 rounded border border-surface-border font-mono">
+                {verificationRun.repository_sha256.slice(0, 16)}... (Pre == Post)
+              </span>
+            </div>
+          </div>
+
+          {/* Test Outputs Side by Side */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 font-mono text-xs">
+            <div>
+              <span className="text-gray-400 block mb-1 flex items-center gap-1.5">
+                <Terminal className="w-3.5 h-3.5 text-amber-400" />
+                Regression Test Output (After Patch Applied)
+              </span>
+              <pre className="bg-black/80 border border-surface-border p-3 rounded text-[11px] text-emerald-400 overflow-x-auto whitespace-pre font-mono">
+                {verificationRun.regression_execution.stdout}
+              </pre>
+            </div>
+            <div>
+              <span className="text-gray-400 block mb-1 flex items-center gap-1.5">
+                <Terminal className="w-3.5 h-3.5 text-emerald-400" />
+                Baseline Test Suite Output
+              </span>
+              <pre className="bg-black/80 border border-surface-border p-3 rounded text-[11px] text-emerald-400 overflow-x-auto whitespace-pre font-mono">
+                {verificationRun.baseline_execution.stdout}
+              </pre>
+            </div>
+          </div>
+        </div>
+
+        {/* Evidence Chain Visualizer */}
+        <div className="p-4 rounded-lg bg-background/60 border border-surface-border space-y-3 font-mono">
+          <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider block">
+            EVIDA Evidence Chain: AI Proposal vs. Deterministic Evidence
+          </span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-[11px]">
+            <div className="p-2 rounded bg-surface/40 border border-surface-border flex items-center justify-between">
+              <span className="text-gray-300">1. Bug Reproduced</span>
+              <span className="px-1.5 py-0.5 rounded bg-blue-950/60 border border-blue-800 text-[9px] text-blue-400 font-bold">DETERMINISTIC EVIDENCE</span>
+            </div>
+            <div className="p-2 rounded bg-surface/40 border border-surface-border flex items-center justify-between">
+              <span className="text-gray-300">2. Hypothesis Proposed</span>
+              <span className="px-1.5 py-0.5 rounded bg-purple-950/60 border border-purple-800 text-[9px] text-purple-400 font-bold">AI PROPOSAL</span>
+            </div>
+            <div className="p-2 rounded bg-surface/40 border border-surface-border flex items-center justify-between">
+              <span className="text-gray-300">3. Regression Proven</span>
+              <span className="px-1.5 py-0.5 rounded bg-blue-950/60 border border-blue-800 text-[9px] text-blue-400 font-bold">DETERMINISTIC EVIDENCE</span>
+            </div>
+            <div className="p-2 rounded bg-surface/40 border border-surface-border flex items-center justify-between">
+              <span className="text-gray-300">4. Patch Synthesized</span>
+              <span className="px-1.5 py-0.5 rounded bg-purple-950/60 border border-purple-800 text-[9px] text-purple-400 font-bold">AI PROPOSAL</span>
+            </div>
+            <div className="p-2 rounded bg-surface/40 border border-surface-border flex items-center justify-between">
+              <span className="text-gray-300">5. Patch Validated</span>
+              <span className="px-1.5 py-0.5 rounded bg-blue-950/60 border border-blue-800 text-[9px] text-blue-400 font-bold">DETERMINISTIC EVIDENCE</span>
+            </div>
+            <div className="p-2 rounded bg-surface/40 border border-surface-border flex items-center justify-between">
+              <span className="text-gray-300">6. Ephemeral Execution</span>
+              <span className="px-1.5 py-0.5 rounded bg-blue-950/60 border border-blue-800 text-[9px] text-blue-400 font-bold">DETERMINISTIC EVIDENCE</span>
+            </div>
+            <div className="p-2 rounded bg-surface/40 border border-surface-border flex items-center justify-between">
+              <span className="text-gray-300">7. Regression Passed</span>
+              <span className="px-1.5 py-0.5 rounded bg-blue-950/60 border border-blue-800 text-[9px] text-blue-400 font-bold">DETERMINISTIC EVIDENCE</span>
+            </div>
+            <div className="p-2 rounded bg-surface/40 border border-surface-border flex items-center justify-between">
+              <span className="text-gray-300">8. Baseline Passed</span>
+              <span className="px-1.5 py-0.5 rounded bg-blue-950/60 border border-blue-800 text-[9px] text-blue-400 font-bold">DETERMINISTIC EVIDENCE</span>
+            </div>
+            <div className="p-2 rounded bg-emerald-950/40 border border-emerald-800 flex items-center justify-between">
+              <span className="text-emerald-300 font-bold">9. VERIFIED</span>
+              <span className="px-1.5 py-0.5 rounded bg-emerald-900/60 border border-emerald-700 text-[9px] text-emerald-300 font-bold">DETERMINISTIC EVIDENCE</span>
             </div>
           </div>
         </div>

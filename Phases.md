@@ -124,14 +124,27 @@ Phase 7: End-to-End Evaluation & Hardening
 - Frontend UI displaying AI Proposal vs Deterministic Evidence, unified diff preview, and prominent `NOT VERIFIED` badge.
 - Comprehensive unit, parser, scope, safety, and API integration test suite.
 
-### Phase 6 — Deterministic Patch Verification & Double Validation
-- Isolated verification workspace extraction with unpatched repository archive.
-- Sandbox patch application (`git apply` or diff patcher).
-- Deterministic double verification:
-  1. Proven regression test must PASS on patched code.
-  2. Full baseline test suite must remain GREEN (zero regressions).
-- Evidence capture: logs, wall time, SHA256 of patched artifacts.
-- Lifecycle transition to `COMPLETED` upon conclusive verification evidence.
+### Phase 6 — Deterministic Patch Verification & Double Validation (Completed)
+- Deterministic patch application in fresh ephemeral sandbox workspaces (`tempfile.TemporaryDirectory`).
+- Pure-Python unified diff hunk engine with context checking and `git apply` fallback.
+- Workspace file manifest pre/post analysis enforcing that only declared files were modified.
+- Strict test immutability: automatic rejection if any test files were modified or deleted.
+- Double Validation Rule:
+  1. **Validation 1 (Defect Fix):** Proven regression test executed against patched code -> MUST PASS (exit code 0).
+  2. **Validation 2 (Regression Protection):** Existing baseline test suite executed against patched code -> MUST PASS (exit code 0).
+- Source repository immutability guarantee: `repository_sha256_before == repository_sha256_after`.
+- Deterministic failure classification taxonomy (`REGRESSION_STILL_FAILING`, `BASELINE_TEST_FAILURE`, `PATCH_APPLICATION_FAILED`, `SOURCE_INTEGRITY_VIOLATION`, `UNEXPECTED_WORKSPACE_CHANGE`, `REGRESSION_TIMEOUT`, `BASELINE_TIMEOUT`).
+- Zero AI discretion: Final verdict (`VERIFIED` or `UNVERIFIED`) is exclusively determined by execution evidence.
+- Idempotency: Repeated verification calls return existing verified records without duplicate sandbox executions.
+- Supabase schema migration `20261027060000_patch_verification_runs.sql` with compound indexes and tenant RLS.
+- Audit event timeline integration (`PATCH_VERIFICATION_STARTED`, `PATCH_APPLICATION_STARTED`, `PATCH_APPLICATION_COMPLETED`, `REGRESSION_VERIFICATION_PASSED`, `BASELINE_VERIFICATION_STARTED`, `BASELINE_VERIFICATION_PASSED`, `SOURCE_INTEGRITY_CHECKED`, `PATCH_VERIFIED`, `PATCH_UNVERIFIED`).
+- Lifecycle state machine transition: `VERIFYING` -> `COMPLETED` upon conclusive verification proof.
+- Standard REST API endpoints:
+  - `POST /api/v1/investigations/{id}/verify-patch`
+  - `GET /api/v1/investigations/{id}/verification`
+  - `GET /api/v1/investigations/{id}/verifications`
+- Frontend UI with dedicated Phase 6 card, 3-step validation grid, execution output inspection, and full 9-step Evidence Chain Visualizer clearly separating AI PROPOSAL from DETERMINISTIC EVIDENCE.
+- Comprehensive unit and integration test suite covering happy paths, negative paths (regression still failing, baseline failing, timeout), source integrity, and precondition enforcement.
 
 ### Phase 7 — End-to-End Evaluation & Hardening
 - SWE-bench or custom benchmark evaluation.

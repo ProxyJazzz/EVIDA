@@ -194,7 +194,7 @@ class MockAIProvider:
             "{\n"
             '  "description": "Correct the divide function to perform mathematical division rather than multiplication.",\n'
             '  "patch_format": "unified_diff",\n'
-            '  "patch_content": "--- a/src/calculator.py\\n+++ b/src/calculator.py\\n@@ -1,2 +1,2 @@\\n def divide(a, b):\\n-    return a * b\\n+    return a / b\\n",\n'
+            '  "patch_content": "--- a/src/calculator.py\\n+++ b/src/calculator.py\\n@@ -1,3 +1,3 @@\\n def divide(a: int, b: int) -> int:\\n     # Bug: multiplication instead of division\\n-    return a * b\\n+    return a / b\\n",\n'
             '  "changed_files": ["src/calculator.py"],\n'
             '  "change_summary": [\n'
             "    {\n"

@@ -15,6 +15,7 @@ from app.domain.investigations.repository import get_investigation_repository
 from app.domain.investigations.service import InvestigationService
 from app.domain.patches.patch_service import PatchService
 from app.domain.repositories.reproduction_service import ReproductionService
+from app.domain.verification.patch_verification_service import PatchVerificationService
 from app.services.supabase import SupabaseClientService
 
 SettingsDep = Annotated[Settings, Depends(get_settings)]
@@ -96,3 +97,16 @@ def get_patch_service_dep(
 
 
 PatchServiceDep = Annotated[PatchService, Depends(get_patch_service_dep)]
+
+
+def get_patch_verification_service_dep(
+    settings: SettingsDep,
+    investigation_service: InvestigationServiceDep,
+) -> PatchVerificationService:
+    repo = get_investigation_repository(settings)
+    return PatchVerificationService(repo, investigation_service, settings)
+
+
+PatchVerificationServiceDep = Annotated[
+    PatchVerificationService, Depends(get_patch_verification_service_dep)
+]

@@ -1,39 +1,27 @@
 # EVIDA — Canonical System Architecture
 
 ```text
-                    ┌──────────────────────┐
-                    │      Next.js         │
-                    │ React + TypeScript   │
-                    │   (apps/web)         │
-                    └──────────┬───────────┘
-                               │
-                               │ HTTPS / JSON
-                               ▼
-                    ┌──────────────────────┐
-                    │       FastAPI        │
-                    │ Application Backend  │
-                    │   (apps/api)         │
-                    └─────┬──────┬─────────┘
-                          │      │
-                          │      │ HTTPS
-                          ▼      ▼
-                   ┌─────────┐ ┌────────────────────────┐
-                   │Supabase │ │  Nebius Token Factory  │
-                   │         │ │  NVIDIA Open Model     │
-                   │Postgres │ │  (Nemotron-3_5, etc.)  │
-                   │Auth     │ └────────────────────────┘
-                   │Storage  │
-                   │RLS      │
-                   └────┬────┘
-                        │
-                        ▼
-               ┌───────────────────┐
-               │ Worker / Sandbox  │
-               │                   │
-               │ Repository        │
-               │ Test execution    │
-               │ Patch execution   │
-               └───────────────────┘
+Next.js
+   ↓
+FastAPI
+   ↓
+Investigation Engine
+   ├── Nebius / NVIDIA
+   │      └── AI proposal
+   │
+   └── Verification Engine
+          ↓
+       Sandbox
+          ↓
+   ┌───────────────┐
+   │ Patch Apply   │
+   │ Regression    │
+   │ Baseline      │
+   └───────────────┘
+          ↓
+       Evidence
+          ↓
+     Final Verdict
 ```
 
 ---
@@ -385,20 +373,109 @@ LIFECYCLE STATUS
   Remains VERIFYING (Awaiting Phase 6 deterministic verification)
 ```
 
-### 8.1 Core Invariant: The Patch Pipeline Distinction
-```text
-PATCH_GENERATED ≠ PATCH_VALIDATED ≠ PATCH_VERIFIED ≠ BUG_FIXED
-```
-1. **PATCH_GENERATED:** AI synthesized a candidate unified diff proposal.
-2. **PATCH_VALIDATED:** EVIDA confirmed that the patch is structurally sound and adheres to all security and scope policies.
-3. **PATCH_VERIFIED:** Reserved exclusively for Phase 6 after deterministic sandbox execution against the proven regression test.
-4. **BUG_FIXED:** Never claimed in Phase 5. The defect remains active until Phase 6 produces execution proof.
+---
 
-### 8.2 Strict Separation of Duties
-- Phase 5 **proposes and validates** candidate patches.
-- Phase 5 **never applies** patches to the repository (no `git apply`, no workspace rewriting).
-- Phase 6 **executes and verifies** patches in isolated workspaces.
-- Test suites are strictly immutable: AI is prevented from modifying `tests/` or weakening the proven regression test.
+## 9. Deterministic Patch Verification & Double Validation Pipeline (Phase 6)
+
+```text
+PATCH_VALIDATED (Phase 5 Candidate) + REGRESSION_PROVEN (Phase 4 Test)
+        │
+        ▼
+PRECONDITION VALIDATION
+  ├── Lifecycle status must be VERIFYING
+  ├── Stored repository archive exists & valid
+  ├── Failure reproduction status == REPRODUCED
+  ├── Causal hypothesis exists
+  ├── Proven regression test status == REGRESSION_PROVEN
+  └── Validated patch candidate status == VALIDATED
+        │
+        ▼
+IDEMPOTENCY CHECK
+  └── Return existing VERIFIED run if matching investigation, patch SHA, & repo SHA
+        │
+        ▼
+SOURCE INTEGRITY PRE-CHECK
+  └── Record sha256_before of stored repository archive
+        │
+        ▼
+FRESH EPHEMERAL WORKSPACE CREATION
+  ├── Temporary directory (prefix: evida_patch_verify_)
+  └── Extract original repository archive safely (no symlinks, bounds checked)
+        │
+        ▼
+CONTROLLED PATCH APPLICATION
+  ├── Try git apply inside ephemeral workspace
+  ├── Fallback to pure-Python unified diff hunk applier if not git repo
+  ├── Workspace file manifest pre vs post inspection
+  └── Rejection rules:
+        ├── Hunk context mismatch / rejected hunks
+        ├── Test files modified (tests/ immutability violation)
+        └── Unexpected files created / modified / deleted
+        │
+        ▼
+DOUBLE VALIDATION 1: RUN PROVEN REGRESSION TEST
+  ├── Inject proven regression test artifact into workspace
+  ├── Execute regression test inside sandbox (pytest <regression_path>)
+  └── PASS? (exit_code == 0 and not timed_out)
+        ├── NO  ──► UNVERIFIED (REGRESSION_STILL_FAILING / TIMEOUT / ERROR)
+        └── YES ──► Proceed to Validation 2
+        │
+        ▼
+DOUBLE VALIDATION 2: RUN BASELINE TEST SUITE
+  ├── Remove injected regression test artifact cleanly
+  ├── Execute repository baseline test command (pytest)
+  └── PASS? (exit_code == 0 and not timed_out)
+        ├── NO  ──► UNVERIFIED (BASELINE_TEST_FAILURE / TIMEOUT / ERROR)
+        └── YES ──► Proceed to Source Integrity Post-Check
+        │
+        ▼
+SOURCE INTEGRITY POST-CHECK
+  ├── Verify sha256_after of original repository artifact in storage
+  └── sha256_before == sha256_after ?
+        ├── NO  ──► SOURCE_INTEGRITY_VIOLATION ──► UNVERIFIED
+        └── YES ──► Source Integrity Confirmed Intact
+        │
+        ▼
+DETERMINISTIC VERDICT ASSIGNMENT
+  ├── Double validation passed + integrity confirmed ──► VERIFIED
+  └── Lifecycle Transition: VERIFYING ──► COMPLETED
+        │
+        ▼
+EVIDENCE CAPTURE & AUDIT PERSISTENCE
+  ├── Append-only table: patch_verification_runs
+  ├── Workspace file manifest & duration telemetry
+  └── Investigation Audit Events Emitted (PATCH_VERIFIED, SOURCE_INTEGRITY_CHECKED)
+        │
+        ▼
+EPHEMERAL WORKSPACE CLEANUP
+  └── Complete directory purge (no source code left behind)
+```
+
+### 9.1 The Double Validation Invariant
+An AI-proposed patch is **never verified** by executing only the generated test or by trusting AI confidence. Double validation requires:
+1. **Validation 1 (Defect Fix):** The exact regression test that failed before the patch must **PASS** (exit 0) after patch application.
+2. **Validation 2 (Regression Protection):** The existing baseline test suite before EVIDA's repair must also **PASS** (exit 0) against the patched workspace to guarantee no existing capabilities were broken.
+3. **Double Validation Rule:**
+```python
+if patch_application_failed:
+    verdict = UNVERIFIED
+elif regression_test_failed:
+    verdict = UNVERIFIED
+elif baseline_tests_failed:
+    verdict = UNVERIFIED
+elif source_integrity_violated:
+    verdict = UNVERIFIED
+else:
+    verdict = VERIFIED
+```
+
+### 9.2 Source Repository Immutability Guarantee
+The original repository artifact is **NEVER** modified:
+```text
+repository_sha256_before == repository_sha256_after
+```
+All patch application and test suite execution occurs strictly within isolated ephemeral workspaces (`tempfile.TemporaryDirectory`). If the archive's SHA-256 changes at any point during verification, `SOURCE_INTEGRITY_VIOLATION` is triggered and the run fails immediately.
+
 
 
 

@@ -220,7 +220,42 @@ curl http://localhost:8000/api/v1/investigations/{id}/hypothesis
 }
 ```
 
-> **Remember:** AI output is an untrusted proposal, not verified truth. EVIDA never modifies code or declares bugs fixed during investigation. Deterministic verification occurs in subsequent phases.
+### 3. Execute Deterministic Double Validation (Phase 6)
+```bash
+curl -X POST http://localhost:8000/api/v1/investigations/{id}/verify-patch
+```
+
+**Example Verification Response:**
+```json
+{
+  "id": "66666666-6666-6666-6666-666666666666",
+  "investigation_id": "33333333-3333-3333-3333-333333333333",
+  "status": "VERIFIED",
+  "verdict": "VERIFIED",
+  "failure_classification": null,
+  "patch_application": {
+    "status": "APPLIED",
+    "exit_code": 0,
+    "duration_ms": 12.5,
+    "modified_files": ["src/calculator.py"]
+  },
+  "regression_execution": {
+    "status": "PASSED",
+    "command": "pytest tests/test_regression.py",
+    "exit_code": 0,
+    "duration_ms": 82.5
+  },
+  "baseline_execution": {
+    "status": "PASSED",
+    "command": "pytest",
+    "exit_code": 0,
+    "duration_ms": 91.0
+  },
+  "source_integrity_verified": true
+}
+```
+
+> **The Double Validation Rule:** An AI-proposed patch is **VERIFIED** only when both the proven regression test passes and the existing baseline test suite passes inside an ephemeral sandbox, while the original repository archive remains cryptographically untouched (`sha_before == sha_after`). If any condition fails, the verdict is deterministically **UNVERIFIED**.
 
 ---
 

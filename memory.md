@@ -1,13 +1,13 @@
 # EVIDA — Project Memory & Implementation Ledger
 ## Current Status
-- **Phase:** Phase 5 — Patch Generation & Candidate Validation
+- **Phase:** Phase 6 — Deterministic Patch Verification & Double Validation
 - **Status:** COMPLETED & VERIFIED
 - **Last Updated:** 2026-10-28
 
 ---
 
 ## Current Objective
-Phase 5 patch generation and candidate validation engine is fully implemented, verified, and committed. Standing by for Phase 6 (Deterministic Patch Verification & Double Validation).
+Phase 6 deterministic patch verification and double validation engine is fully implemented, verified, and committed. Standing by for Phase 7 (End-to-End Evaluation & Hardening).
 
 ---
 
@@ -85,11 +85,30 @@ Phase 5 patch generation and candidate validation engine is fully implemented, v
 - [x] **Frontend UI (`apps/web/app/investigations/[id]/page.tsx`):** Renders Patch Candidate section with AI Proposal vs Deterministic Evidence, monospace highlighted unified diff, validation checklist, and prominent `NOT VERIFIED` invariant banner.
 - [x] **Automated Validation:** 188 backend tests passing, 4 frontend tests passing, Ruff lint/format clean, Mypy strict clean, Next build clean, sandbox execution verified.
 
+### Phase 6 — Deterministic Patch Verification & Double Validation
+- [x] **Database Migration (`supabase/migrations/20261027060000_patch_verification_runs.sql`):** Added `patch_verification_runs` table with compound indexes `(investigation_id, created_at DESC)`, `(patch_candidate_id)`, `(regression_test_id)`, and strict tenant RLS derived through `investigation -> project -> auth.uid()`.
+- [x] **Domain Models & Pydantic Contracts (`apps/api/app/domain/verification/models.py`):** Strongly typed `PatchVerificationStatus`, `PatchVerificationVerdict` (`VERIFIED`, `UNVERIFIED`), `VerificationFailureClassification`, `PatchApplicationResult`, `VerificationTestResponse`, `PatchVerificationResponse`.
+- [x] **Bounded Configuration (`apps/api/app/core/config.py`):** Centralized limits: `PATCH_APPLICATION_TIMEOUT_SECONDS` (30.0), `REGRESSION_VERIFICATION_TIMEOUT_SECONDS` (30.0), `BASELINE_VERIFICATION_TIMEOUT_SECONDS` (60.0), `MAX_VERIFICATION_OUTPUT_BYTES` (50,000), `MAX_VERIFICATION_WORKSPACE_BYTES` (50,000,000), `MAX_VERIFICATION_FILES` (1000).
+- [x] **Patch Applier Engine (`apps/api/app/domain/verification/patch_applier.py`):** Pure-Python hunk engine with line-based context verification and `git apply` fallback; file manifest pre/post calculation; test immutability enforcement rejecting any modifications or deletions to test directories.
+- [x] **Double Validation Orchestrator (`apps/api/app/domain/verification/patch_verification_service.py`):**
+  - Validation 1: Runs proven regression test against patched code -> MUST PASS (exit 0).
+  - Validation 2: Runs repository baseline test suite -> MUST PASS (exit 0).
+  - Source integrity check: Cryptographic SHA-256 pre == post verification.
+  - Zero AI discretion: Final verdict is 100% deterministic execution evidence.
+- [x] **Lifecycle Transition:** Transitions `VERIFYING` -> `COMPLETED` exclusively upon successful double validation. Failed verification leaves status in `VERIFYING` for continued review.
+- [x] **Idempotency:** Repeated calls return existing verified record without re-executing sandbox runs.
+- [x] **REST API Endpoints:**
+  - `POST /api/v1/investigations/{id}/verify-patch`: Executes double validation on candidate patch.
+  - `GET /api/v1/investigations/{id}/verification`: Retrieves latest verification run evidence.
+  - `GET /api/v1/investigations/{id}/verifications`: Retrieves list of historical verification runs.
+- [x] **Frontend Integration (`apps/web/app/investigations/[id]/page.tsx`):** Renders dedicated Phase 6 card with 3-step validation grid (Patch Application, Original Regression, Existing Test Suite), source integrity guarantee row, stdout terminals, and 9-step Evidence Chain Visualizer clearly differentiating AI PROPOSAL from DETERMINISTIC EVIDENCE.
+- [x] **Automated Validation:** 209 backend tests passing (unit, integration, state machine, sandbox), 4 frontend tests passing, Ruff lint/format clean, Mypy strict clean, Next build clean, sandbox execution verified.
+
 ---
 
 ## Next Steps
-- Await instruction to start **Phase 6 — Deterministic Patch Verification & Double Validation**.
-- Do not begin Phase 6 until instructed.
+- Await instruction to start **Phase 7 — End-to-End Evaluation & Hardening**.
+- Do not begin Phase 7 until instructed.
 
 ---
 

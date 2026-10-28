@@ -80,7 +80,14 @@ class PatchService:
                 status_code=404,
             )
 
-        return self._to_response(patch)
+        v_status = "NOT_VERIFIED"
+        v_run = await self.repo.get_patch_verification_run_by_investigation_id(investigation_id)
+        if v_run is not None:
+            v_status = (
+                v_run.verdict.value if hasattr(v_run.verdict, "value") else str(v_run.verdict)
+            )
+
+        return self._to_response(patch, verification_status=v_status)
 
     async def generate_and_validate_patch(
         self,
@@ -412,7 +419,11 @@ class PatchService:
                     ) from exc
                 logger.warning(f"Unexpected error on attempt 1: {exc}")
 
-    def _to_response(self, record: PatchCandidateRecord) -> PatchCandidateResponse:
+    def _to_response(
+        self,
+        record: PatchCandidateRecord,
+        verification_status: str = "NOT_VERIFIED",
+    ) -> PatchCandidateResponse:
         """Format persistent entity record into API response."""
         return PatchCandidateResponse(
             id=record.id,
@@ -428,7 +439,7 @@ class PatchService:
             reasoning=record.reasoning,
             validation_result=str(record.validation_result) if record.validation_result else None,
             validation_errors=record.validation_errors,
-            verification_status="NOT_VERIFIED",
+            verification_status=verification_status,
             model=record.model,
             provider=record.provider,
             prompt_version=record.prompt_version,
