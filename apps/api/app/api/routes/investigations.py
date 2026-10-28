@@ -265,9 +265,10 @@ async def get_patch(
 async def verify_patch(
     investigation_id: UUID,
     service: PatchVerificationServiceDep,
+    user_id: UserIdDep,
 ) -> PatchVerificationResponse:
     """Execute candidate patch in an isolated ephemeral workspace with double validation (regression + baseline)."""
-    return await service.verify_patch_candidate(investigation_id)
+    return await service.verify_patch_candidate(investigation_id, user_id=user_id)
 
 
 @router.get(
@@ -278,9 +279,10 @@ async def verify_patch(
 async def get_latest_verification(
     investigation_id: UUID,
     service: PatchVerificationServiceDep,
+    user_id: UserIdDep,
 ) -> PatchVerificationResponse:
     """Retrieve the latest deterministic patch verification run and objective execution evidence."""
-    return await service.get_latest_verification(investigation_id)
+    return await service.get_latest_verification(investigation_id, user_id=user_id)
 
 
 @router.get(
@@ -291,6 +293,7 @@ async def get_latest_verification(
 async def list_verifications(
     investigation_id: UUID,
     service: PatchVerificationServiceDep,
+    user_id: UserIdDep,
 ) -> list[PatchVerificationResponse]:
     """Retrieve historical verification runs for an investigation."""
-    return await service.list_verifications(investigation_id)
+    return await service.list_verifications(investigation_id, user_id=user_id)

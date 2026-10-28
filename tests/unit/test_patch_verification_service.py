@@ -350,3 +350,107 @@ async def test_baseline_test_failure(
         updated_inv = await in_memory_repo.get_by_id(inv.id)
         assert updated_inv is not None
         assert updated_inv.status == InvestigationStatus.VERIFYING
+
+
+@pytest.mark.asyncio
+async def test_tenant_authorization_precondition(
+    in_memory_repo: InMemoryInvestigationRepository,
+    verification_service: PatchVerificationService,
+):
+    inv, _, _ = await setup_ready_investigation(in_memory_repo)
+    # Attempt verification by different user
+    with pytest.raises(LifecycleException) as exc_info:
+        await verification_service.verify_patch_candidate(
+            inv.id, user_id="other_user_999"
+        )
+    assert exc_info.value.code == "INVESTIGATION_PRECONDITION_FAILED"
+    assert exc_info.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_regression_execution_error_classification(
+    in_memory_repo: InMemoryInvestigationRepository,
+    verification_service: PatchVerificationService,
+):
+    inv, _, _ = await setup_ready_investigation(in_memory_repo)
+    with patch(
+        "app.domain.verification.patch_verification_service.execute_command"
+    ) as mock_exec:
+        # Exit code 2 = pytest collection / syntax crash
+        mock_exec.return_value = SandboxResult(
+            exit_code=2,
+            stdout="",
+            stderr="ERROR collecting tests/test_regression.py",
+            duration_ms=25.0,
+        )
+
+        result = await verification_service.verify_patch_candidate(inv.id)
+        assert result.verdict == PatchVerificationVerdict.UNVERIFIED
+        assert (
+            result.failure_classification
+            == VerificationFailureClassification.REGRESSION_EXECUTION_ERROR
+        )
+        assert result.regression_execution.status == "FAILED"
+
+
+@pytest.mark.asyncio
+async def test_source_integrity_violation_detection(
+    in_memory_repo: InMemoryInvestigationRepository,
+    verification_service: PatchVerificationService,
+):
+    inv, _, _ = await setup_ready_investigation(in_memory_repo)
+    repo_meta = await in_memory_repo.get_repository_by_investigation_id(inv.id)
+    assert repo_meta is not None and repo_meta.storage_path is not None
+
+    # We simulate tampering with stored repository archive right before step 6
+    original_get_archive = in_memory_repo.get_archive_bytes
+
+    call_count = 0
+
+    async def tampered_get_archive(path: str) -> bytes | None:
+        nonlocal call_count
+        call_count += 1
+        res = await original_get_archive(path)
+        if call_count > 1 and res is not None:
+            # Tamper the post-check archive bytes
+            return res + b"CORRUPTED_MUTATION"
+        return res
+
+    with patch.object(
+        in_memory_repo, "get_archive_bytes", side_effect=tampered_get_archive
+    ):
+        result = await verification_service.verify_patch_candidate(inv.id)
+
+        assert result.verdict == PatchVerificationVerdict.UNVERIFIED
+        assert (
+            result.failure_classification
+            == VerificationFailureClassification.SOURCE_INTEGRITY_VIOLATION
+        )
+        assert result.source_integrity_verified is False
+
+
+@pytest.mark.asyncio
+async def test_patch_application_unexpected_workspace_change(
+    in_memory_repo: InMemoryInvestigationRepository,
+    verification_service: PatchVerificationService,
+):
+    inv, patch_cand, _ = await setup_ready_investigation(in_memory_repo)
+    # Patch modifies a test file, which violates test immutability
+    patch_cand.patch_content = (
+        "--- a/tests/test_bug.py\n"
+        "+++ b/tests/test_bug.py\n"
+        "@@ -6,1 +6,1 @@\n"
+        "-    assert divide(10, 2) == 5\n"
+        "+    assert True\n"
+    )
+    patch_cand.changed_files = ["tests/test_bug.py"]
+    await in_memory_repo.save_patch_candidate(patch_cand)
+
+    result = await verification_service.verify_patch_candidate(inv.id)
+
+    assert result.verdict == PatchVerificationVerdict.UNVERIFIED
+    assert (
+        result.failure_classification
+        == VerificationFailureClassification.UNEXPECTED_WORKSPACE_CHANGE
+    )
+    assert result.patch_application.status == "FAILED"

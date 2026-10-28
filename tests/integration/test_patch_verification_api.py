@@ -346,3 +346,198 @@ async def test_verification_not_found(async_client: AsyncClient) -> None:
     random_id = str(uuid4())
     resp = await async_client.get(f"/api/v1/investigations/{random_id}/verification")
     assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_verification_tenant_isolation(async_client: AsyncClient) -> None:
+    """User B cannot access or verify User A's investigation."""
+    headers_a = {"Authorization": "Bearer user_a_token_secret"}
+    headers_b = {"Authorization": "Bearer user_b_token_secret"}
+
+    # User A creates investigation
+    create_resp = await async_client.post(
+        "/api/v1/investigations",
+        json={
+            "project_id": str(uuid4()),
+            "repository_id": str(uuid4()),
+            "title": "Tenant Isolation Test",
+            "bug_description": "User A secret bug",
+        },
+        headers=headers_a,
+    )
+    assert create_resp.status_code == 201
+    inv_id = create_resp.json()["id"]
+
+    # User B tries to verify User A's investigation
+    verify_resp = await async_client.post(
+        f"/api/v1/investigations/{inv_id}/verify-patch",
+        headers=headers_b,
+    )
+    assert verify_resp.status_code == 403
+    assert "INVESTIGATION_PRECONDITION_FAILED" in str(verify_resp.json())
+
+    # User B tries to read User A's verification
+    get_resp = await async_client.get(
+        f"/api/v1/investigations/{inv_id}/verification",
+        headers=headers_b,
+    )
+    assert get_resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_verification_bad_patch_real_execution(async_client: AsyncClient) -> None:
+    """Real deterministic execution of a bad candidate patch that fails to fix the bug.
+
+    Does not use mocks for execute_command.
+    Expected: UNVERIFIED with REGRESSION_STILL_FAILING.
+    """
+    inv_id, _ = await setup_validated_patch_investigation(async_client)
+
+    # Invalidate patch with a useless non-fixing patch in repo directly
+    from uuid import UUID
+
+    from app.api.dependencies import get_investigation_repository
+    from app.core.config import get_settings
+
+    repo = get_investigation_repository(get_settings())
+    cand = await repo.get_patch_candidate_by_investigation_id(UUID(inv_id))
+    assert cand is not None
+    cand.patch_content = (
+        "--- a/src/calculator.py\n"
+        "+++ b/src/calculator.py\n"
+        "@@ -1,3 +1,3 @@\n"
+        " def divide(a: int, b: int) -> int:\n"
+        "     # Bug: multiplication instead of division\n"
+        "-    return a * b\n"
+        "+    return a * b + 0\n"
+    )
+    await repo.save_patch_candidate(cand)
+
+    verify_resp = await async_client.post(
+        f"/api/v1/investigations/{inv_id}/verify-patch"
+    )
+    assert verify_resp.status_code == 200
+    data = verify_resp.json()
+
+    assert data["verdict"] == "UNVERIFIED"
+    assert data["status"] == "UNVERIFIED"
+    assert data["failure_classification"] == "REGRESSION_STILL_FAILING"
+    assert data["regression_execution"]["status"] == "FAILED"
+    assert data["baseline_execution"]["status"] == "SKIPPED"
+
+
+@pytest.mark.asyncio
+async def test_verification_baseline_failure_real_execution(
+    async_client: AsyncClient,
+) -> None:
+    """Real deterministic execution of a patch that fixes the regression but breaks baseline tests.
+
+    Expected: UNVERIFIED with BASELINE_TEST_FAILURE.
+    """
+    import io
+    import zipfile
+    from uuid import UUID
+
+    from app.api.dependencies import get_investigation_repository
+    from app.core.config import get_settings
+
+    # Build repo archive with both bug test and baseline test
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("multi_repo/src/__init__.py", "")
+        zf.writestr(
+            "multi_repo/src/calculator.py",
+            "def divide(a: int, b: int) -> int:\n"
+            "    return a * b\n\n"
+            "def add(a: int, b: int) -> int:\n"
+            "    return a + b\n",
+        )
+        zf.writestr("multi_repo/tests/__init__.py", "")
+        zf.writestr(
+            "multi_repo/tests/test_bug.py",
+            "import sys\nfrom pathlib import Path\n"
+            "sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))\n"
+            "from calculator import divide\n\n"
+            "def test_divide_bug():\n"
+            "    assert divide(10, 2) == 5\n",
+        )
+        zf.writestr(
+            "multi_repo/tests/test_baseline.py",
+            "import sys\nfrom pathlib import Path\n"
+            "sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))\n"
+            "from calculator import add\n\n"
+            "def test_add_baseline():\n"
+            "    assert add(2, 3) == 5\n",
+        )
+        zf.writestr(
+            "multi_repo/pyproject.toml",
+            "[project]\nname = 'multi'\nversion = '0.1.0'\n",
+        )
+    repo_bytes = buf.getvalue()
+
+    # 1. Create Investigation
+    create_resp = await async_client.post(
+        "/api/v1/investigations",
+        json={
+            "project_id": str(uuid4()),
+            "repository_id": str(uuid4()),
+            "title": "Baseline break test",
+            "bug_description": "divide returns 20 instead of 5",
+        },
+    )
+    inv_id = create_resp.json()["id"]
+
+    # 2. Upload archive
+    upload_resp = await async_client.post(
+        f"/api/v1/investigations/{inv_id}/repository",
+        files={"file": ("multi_repo.zip", repo_bytes, "application/zip")},
+    )
+    assert upload_resp.status_code == 201
+
+    # 3. Reproduce failure
+    repro_resp = await async_client.post(
+        f"/api/v1/investigations/{inv_id}/reproduce",
+        json={"command": "pytest tests/test_bug.py"},
+    )
+    assert repro_resp.status_code == 200
+
+    # 4. Formulate hypothesis
+    await async_client.post(f"/api/v1/investigations/{inv_id}/investigate")
+
+    # 5. Regression test
+    await async_client.post(f"/api/v1/investigations/{inv_id}/regression-test")
+
+    # 6. Generate patch
+    await async_client.post(f"/api/v1/investigations/{inv_id}/patch")
+
+    # 7. Update patch candidate to fix divide but break add
+    repo = get_investigation_repository(get_settings())
+    cand = await repo.get_patch_candidate_by_investigation_id(UUID(inv_id))
+    assert cand is not None
+    cand.patch_content = (
+        "--- a/src/calculator.py\n"
+        "+++ b/src/calculator.py\n"
+        "@@ -1,5 +1,5 @@\n"
+        " def divide(a: int, b: int) -> int:\n"
+        "-    return a * b\n"
+        "+    return a // b\n"
+        " \n"
+        " def add(a: int, b: int) -> int:\n"
+        "-    return a + b\n"
+        "+    return 0\n"
+    )
+    await repo.save_patch_candidate(cand)
+
+    # 8. Verify patch: regression test will pass, but baseline test suite will fail!
+    verify_resp = await async_client.post(
+        f"/api/v1/investigations/{inv_id}/verify-patch"
+    )
+    assert verify_resp.status_code == 200
+    data = verify_resp.json()
+
+    assert data["verdict"] == "UNVERIFIED"
+    assert data["status"] == "UNVERIFIED"
+    assert data["failure_classification"] == "BASELINE_TEST_FAILURE"
+    assert data["regression_execution"]["status"] == "PASSED"
+    assert data["baseline_execution"]["status"] == "FAILED"
+    assert "test_add_baseline" in data["baseline_execution"]["stdout"]

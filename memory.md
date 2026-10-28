@@ -89,11 +89,14 @@ Phase 6 deterministic patch verification and double validation engine is fully i
 - [x] **Database Migration (`supabase/migrations/20261027060000_patch_verification_runs.sql`):** Added `patch_verification_runs` table with compound indexes `(investigation_id, created_at DESC)`, `(patch_candidate_id)`, `(regression_test_id)`, and strict tenant RLS derived through `investigation -> project -> auth.uid()`.
 - [x] **Domain Models & Pydantic Contracts (`apps/api/app/domain/verification/models.py`):** Strongly typed `PatchVerificationStatus`, `PatchVerificationVerdict` (`VERIFIED`, `UNVERIFIED`), `VerificationFailureClassification`, `PatchApplicationResult`, `VerificationTestResponse`, `PatchVerificationResponse`.
 - [x] **Bounded Configuration (`apps/api/app/core/config.py`):** Centralized limits: `PATCH_APPLICATION_TIMEOUT_SECONDS` (30.0), `REGRESSION_VERIFICATION_TIMEOUT_SECONDS` (30.0), `BASELINE_VERIFICATION_TIMEOUT_SECONDS` (60.0), `MAX_VERIFICATION_OUTPUT_BYTES` (50,000), `MAX_VERIFICATION_WORKSPACE_BYTES` (50,000,000), `MAX_VERIFICATION_FILES` (1000).
-- [x] **Patch Applier Engine (`apps/api/app/domain/verification/patch_applier.py`):** Pure-Python hunk engine with line-based context verification and `git apply` fallback; file manifest pre/post calculation; test immutability enforcement rejecting any modifications or deletions to test directories.
+- [x] **Patch Applier Engine (`apps/api/app/domain/verification/patch_applier.py`):** Pure-Python hunk engine with line-based context verification and `git apply` fallback; path traversal detection; sensitive path shield; workspace file count and total size limit enforcement; file manifest pre/post calculation; test immutability enforcement.
+- [x] **Deterministic Verdict Classifier (`apps/api/app/domain/verification/verdict_classifier.py`):** Explicit deterministic taxonomy (`VERIFIED`, `PATCH_APPLICATION_FAILED`, `PATCH_APPLICATION_TIMEOUT`, `PATCH_APPLICATION_POLICY_BLOCKED`, `REGRESSION_STILL_FAILING`, `REGRESSION_EXECUTION_ERROR`, `REGRESSION_TIMEOUT`, `REGRESSION_POLICY_BLOCKED`, `BASELINE_TEST_FAILURE`, `BASELINE_EXECUTION_ERROR`, `BASELINE_TIMEOUT`, `BASELINE_POLICY_BLOCKED`, `SOURCE_INTEGRITY_VIOLATION`, `UNEXPECTED_WORKSPACE_CHANGE`).
 - [x] **Double Validation Orchestrator (`apps/api/app/domain/verification/patch_verification_service.py`):**
+  - All 12 preconditions checked (`INVESTIGATION_PRECONDITION_FAILED`).
+  - Tenant boundary isolation enforced.
   - Validation 1: Runs proven regression test against patched code -> MUST PASS (exit 0).
   - Validation 2: Runs repository baseline test suite -> MUST PASS (exit 0).
-  - Source integrity check: Cryptographic SHA-256 pre == post verification.
+  - Source integrity check: Cryptographic SHA-256 pre == post verification of stored repository artifact.
   - Zero AI discretion: Final verdict is 100% deterministic execution evidence.
 - [x] **Lifecycle Transition:** Transitions `VERIFYING` -> `COMPLETED` exclusively upon successful double validation. Failed verification leaves status in `VERIFYING` for continued review.
 - [x] **Idempotency:** Repeated calls return existing verified record without re-executing sandbox runs.
@@ -102,7 +105,7 @@ Phase 6 deterministic patch verification and double validation engine is fully i
   - `GET /api/v1/investigations/{id}/verification`: Retrieves latest verification run evidence.
   - `GET /api/v1/investigations/{id}/verifications`: Retrieves list of historical verification runs.
 - [x] **Frontend Integration (`apps/web/app/investigations/[id]/page.tsx`):** Renders dedicated Phase 6 card with 3-step validation grid (Patch Application, Original Regression, Existing Test Suite), source integrity guarantee row, stdout terminals, and 9-step Evidence Chain Visualizer clearly differentiating AI PROPOSAL from DETERMINISTIC EVIDENCE.
-- [x] **Automated Validation:** 209 backend tests passing (unit, integration, state machine, sandbox), 4 frontend tests passing, Ruff lint/format clean, Mypy strict clean, Next build clean, sandbox execution verified.
+- [x] **Automated Validation:** 224 backend tests passing (unit, integration, state machine, sandbox), 4 frontend tests passing, Ruff lint/format clean, Mypy strict clean, Next build clean, sandbox execution verified.
 
 ---
 

@@ -52,6 +52,7 @@ class InvestigationService:
 
         entity = Investigation(
             id=inv_id,
+            user_id=user_id,
             project_id=request.project_id,
             repository_id=request.repository_id,
             title=title,

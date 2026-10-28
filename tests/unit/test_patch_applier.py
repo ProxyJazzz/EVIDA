@@ -149,3 +149,61 @@ def test_apply_patch_to_workspace_rejects_unexpected_file_modification():
         )
         assert res.status == "FAILED"
         assert "unexpected" in res.stderr.lower()
+
+
+def test_apply_patch_pure_python_detects_path_traversal():
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        patch = "--- a/src/calc.py\n+++ b/../evil.py\n@@ -1,1 +1,1 @@\n-foo\n+bar\n"
+        ok, err, _ = apply_patch_pure_python(root, patch)
+        assert ok is False
+        assert "path traversal" in err.lower()
+
+
+def test_apply_patch_pure_python_detects_sensitive_files():
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        patch = (
+            "--- a/src/calc.py\n+++ b/.env\n@@ -1,1 +1,1 @@\n-SECRET=old\n+SECRET=new\n"
+        )
+        ok, err, _ = apply_patch_pure_python(root, patch)
+        assert ok is False
+        assert "sensitive path" in err.lower()
+
+
+def test_apply_patch_workspace_file_limit_enforced():
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        (root / "src").mkdir()
+        (root / "src" / "a.py").write_text("x = 1\n", encoding="utf-8")
+        (root / "src" / "b.py").write_text("y = 2\n", encoding="utf-8")
+
+        patch = "--- a/src/a.py\n+++ b/src/a.py\n@@ -1,1 +1,1 @@\n-x = 1\n+x = 10\n"
+        # Limit to 1 file in workspace
+        res, _ = apply_patch_to_workspace(
+            root, patch, declared_changed_files=["src/a.py"], max_workspace_files=1
+        )
+        assert res.status == "FAILED"
+        assert "file count" in res.stderr.lower()
+
+
+def test_apply_patch_workspace_size_limit_enforced():
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        (root / "src").mkdir()
+        orig_line = "x" * 200
+        (root / "src" / "a.py").write_text(f"{orig_line}\n", encoding="utf-8")
+
+        patch = (
+            "--- a/src/a.py\n"
+            "+++ b/src/a.py\n"
+            "@@ -1,1 +1,1 @@\n"
+            f"-{orig_line}\n"
+            f"+{'y' * 200}\n"
+        )
+        # Limit to 50 bytes
+        res, _ = apply_patch_to_workspace(
+            root, patch, declared_changed_files=["src/a.py"], max_workspace_bytes=50
+        )
+        assert res.status == "FAILED"
+        assert "workspace size" in res.stderr.lower()

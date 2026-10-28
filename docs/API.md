@@ -573,13 +573,19 @@ Same as `POST /patch` response body.
 
 Executes deterministic double validation on the latest candidate patch inside an isolated ephemeral workspace. Reruns the proven regression test (Validation 1) and the repository baseline test suite (Validation 2). Verifies cryptographic source repository immutability.
 
-**Preconditions:**
-1. Investigation status must be `VERIFYING`.
-2. Valid stored repository archive exists.
-3. Reproduction status is `REPRODUCED`.
-4. Causal hypothesis exists.
-5. Proven regression test exists with status `REGRESSION_PROVEN`.
-6. Validated candidate patch exists with status `VALIDATED`.
+**Preconditions (Fails with `INVESTIGATION_PRECONDITION_FAILED`):**
+1. Investigation exists.
+2. Investigation belongs to the authenticated user/tenant.
+3. Investigation lifecycle is `VERIFYING`.
+4. Repository exists.
+5. Repository has a valid stored archive.
+6. Reproduction status is `REPRODUCED`.
+7. Valid causal hypothesis exists.
+8. Proven regression test exists.
+9. Regression verification verdict is `REGRESSION_PROVEN`.
+10. Validated patch candidate exists.
+11. Patch status is `VALIDATED`.
+12. Patch verification state is currently `NOT_VERIFIED` (or rerunnable).
 
 **Response (200 OK — Verified):**
 ```json

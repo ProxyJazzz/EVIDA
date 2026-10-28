@@ -25,6 +25,17 @@ HUNK_HEADER_RE = re.compile(
     r"^@@\s+-(\d+)(?:,(\d+))?\s+\+(\d+)(?:,(\d+))?\s+@@(.*)",
 )
 
+SENSITIVE_TARGET_PARTS = {
+    ".env",
+    ".git",
+    "id_rsa",
+    "credentials",
+    "secrets.yaml",
+    "secrets.json",
+    ".aws",
+    ".ssh",
+}
+
 
 def capture_workspace_manifest(repo_root: Path) -> dict[str, str]:
     """Capture a deterministic file manifest (relative POSIX path -> SHA-256 digest)."""
@@ -72,6 +83,32 @@ def apply_patch_pure_python(repo_root: Path, patch_content: str) -> tuple[bool, 
                 target_path = plus_line[4:].strip()
                 if target_path.startswith("b/"):
                     target_path = target_path[2:]
+
+                # Defense-in-depth: detect path traversal in diff header
+                if ".." in target_path or target_path.startswith("/"):
+                    return (
+                        False,
+                        f"Security violation: path traversal detected in patch target '{target_path}'",
+                        [],
+                    )
+
+                if any(part in SENSITIVE_TARGET_PARTS for part in Path(target_path).parts):
+                    return (
+                        False,
+                        f"Security violation: patch modifies sensitive path '{target_path}'",
+                        [],
+                    )
+
+                try:
+                    resolved = (repo_root / target_path).resolve()
+                    resolved.relative_to(repo_root.resolve())
+                except (ValueError, RuntimeError):
+                    return (
+                        False,
+                        f"Security violation: target path '{target_path}' escapes workspace",
+                        [],
+                    )
+
                 current_file = target_path
                 i += 2
                 continue
@@ -193,6 +230,8 @@ def apply_patch_to_workspace(
     declared_changed_files: list[str],
     *,
     timeout_seconds: float = 30.0,
+    max_workspace_files: int = 1000,
+    max_workspace_bytes: int = 50_000_000,
 ) -> tuple[PatchApplicationResult, dict[str, str]]:
     """Apply validated candidate patch to an isolated workspace with defense-in-depth checks.
 
@@ -201,6 +240,8 @@ def apply_patch_to_workspace(
         patch_content: Canonical unified diff text.
         declared_changed_files: List of files declared as changed by the Phase 5 candidate.
         timeout_seconds: Hard timeout for the application process.
+        max_workspace_files: Maximum allowable files in workspace.
+        max_workspace_bytes: Maximum allowable total bytes in workspace.
 
     Returns:
         tuple of (PatchApplicationResult, manifest_after).
@@ -213,6 +254,7 @@ def apply_patch_to_workspace(
     stdout = ""
     stderr = ""
     exit_code = 0
+    timed_out = False
 
     patch_file = repo_root / ".evida_candidate.patch"
     try:
@@ -223,7 +265,11 @@ def apply_patch_to_workspace(
             cwd=str(repo_root),
             timeout_seconds=timeout_seconds,
         )
-        if git_res.exit_code == 0 and not git_res.timed_out:
+        if git_res.timed_out:
+            timed_out = True
+            stderr = f"Patch application timed out after {timeout_seconds}s"
+            exit_code = 124
+        elif git_res.exit_code == 0:
             applied_cleanly = True
             stdout = git_res.stdout
             stderr = git_res.stderr
@@ -234,8 +280,8 @@ def apply_patch_to_workspace(
         if patch_file.exists():
             patch_file.unlink()
 
-    # 2. Second attempt: fallback to pure-python patch applier if git apply did not succeed
-    if not applied_cleanly:
+    # 2. Second attempt: fallback to pure-python patch applier if git apply did not succeed and didn't timeout
+    if not applied_cleanly and not timed_out:
         py_success, py_err, _ = apply_patch_pure_python(repo_root, patch_content)
         if py_success:
             applied_cleanly = True
@@ -247,6 +293,18 @@ def apply_patch_to_workspace(
             exit_code = 1
 
     duration_ms = (time.perf_counter() - start_time) * 1000.0
+
+    if timed_out:
+        return (
+            PatchApplicationResult(
+                status="TIMEOUT",
+                exit_code=exit_code,
+                stdout=stdout,
+                stderr=stderr,
+                duration_ms=duration_ms,
+            ),
+            manifest_before,
+        )
 
     if not applied_cleanly:
         return (
@@ -262,6 +320,34 @@ def apply_patch_to_workspace(
 
     # 3. Post-application workspace integrity verification
     manifest_after = capture_workspace_manifest(repo_root)
+
+    # Enforce workspace resource bounds
+    if len(manifest_after) > max_workspace_files:
+        return (
+            PatchApplicationResult(
+                status="FAILED",
+                exit_code=1,
+                stdout=stdout,
+                stderr=f"Security violation: workspace file count ({len(manifest_after)}) exceeds limit of {max_workspace_files}.",
+                duration_ms=duration_ms,
+            ),
+            manifest_after,
+        )
+
+    total_workspace_bytes = sum(
+        (repo_root / f).stat().st_size for f in manifest_after if (repo_root / f).is_file()
+    )
+    if total_workspace_bytes > max_workspace_bytes:
+        return (
+            PatchApplicationResult(
+                status="FAILED",
+                exit_code=1,
+                stdout=stdout,
+                stderr=f"Security violation: workspace size ({total_workspace_bytes} bytes) exceeds limit of {max_workspace_bytes} bytes.",
+                duration_ms=duration_ms,
+            ),
+            manifest_after,
+        )
 
     modified_files = [
         f

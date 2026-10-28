@@ -251,6 +251,7 @@ class Investigation(BaseModel):
     """Core domain entity for an EVIDA software repair investigation."""
 
     id: UUID = Field(default_factory=uuid4)
+    user_id: str | None = None
     project_id: UUID | None = None
     repository_id: UUID
     title: str

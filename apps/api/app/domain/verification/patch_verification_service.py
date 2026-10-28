@@ -40,8 +40,23 @@ from app.domain.verification.models import (
     VerificationTestResponse,
 )
 from app.domain.verification.patch_applier import apply_patch_to_workspace
+from app.domain.verification.verdict_classifier import (
+    classify_baseline_failure,
+    classify_patch_application_failure,
+    classify_regression_failure,
+    determine_double_validation_verdict,
+)
 
 logger = get_logger("evida.verification.service")
+
+
+def truncate_output(text: str, max_bytes: int) -> str:
+    """Enforce hard output size truncation for storage efficiency."""
+    encoded = text.encode("utf-8", errors="replace")
+    if len(encoded) <= max_bytes:
+        return text
+    truncated = encoded[:max_bytes].decode("utf-8", errors="ignore")
+    return f"{truncated}\n[OUTPUT TRUNCATED: Exceeded {max_bytes} byte limit]"
 
 
 class PatchVerificationService:
@@ -57,14 +72,23 @@ class PatchVerificationService:
         self.investigation_service = investigation_service
         self.settings = settings
 
-    async def verify_patch_candidate(self, investigation_id: UUID) -> PatchVerificationResponse:
+    async def verify_patch_candidate(
+        self, investigation_id: UUID, user_id: str | None = None
+    ) -> PatchVerificationResponse:
         """Execute deterministic double validation on the latest candidate patch."""
-        # 1. Precondition checks
+        # 1. Precondition checks: existence & tenant ownership
         inv = await self.repo.get_by_id(investigation_id)
         if inv is None:
             raise InvestigationNotFoundError(str(investigation_id))
 
-        # 1. Idempotency Check: if this patch candidate was already verified successfully
+        if user_id is not None and inv.user_id and inv.user_id != user_id:
+            raise LifecycleException(
+                f"Investigation '{investigation_id}' does not belong to authenticated user/tenant.",
+                code="INVESTIGATION_PRECONDITION_FAILED",
+                status_code=403,
+            )
+
+        # 2. Idempotency Check: if this exact candidate patch was already verified successfully
         patch_candidate = await self.repo.get_patch_candidate_by_investigation_id(investigation_id)
         if patch_candidate is not None:
             existing_run = await self.repo.get_patch_verification_run_by_investigation_id(
@@ -82,7 +106,7 @@ class PatchVerificationService:
                 )
                 return self._to_response(existing_run)
 
-        # 2. Precondition checks
+        # 3. Precondition checks: lifecycle & required Phase 1-5 evidence artifacts
         if inv.status != InvestigationStatus.VERIFYING:
             raise LifecycleException(
                 f"Investigation '{investigation_id}' is in status '{inv.status}', "
@@ -141,7 +165,7 @@ class PatchVerificationService:
                 status_code=400,
             )
 
-        # 3. Source Integrity Pre-Check
+        # 4. Source Integrity Pre-Check
         sha256_before = hashlib.sha256(archive_bytes).hexdigest()
         patch_sha256 = hashlib.sha256(patch_candidate.patch_content.encode("utf-8")).hexdigest()
 
@@ -168,7 +192,7 @@ class PatchVerificationService:
         verification_id = uuid4()
         now = datetime.now(UTC)
 
-        # 4. Fresh Ephemeral Workspace Extraction & Execution
+        # 5. Fresh Ephemeral Workspace Extraction & Execution
         with tempfile.TemporaryDirectory(prefix="evida_patch_verify_") as tmp_dir:
             repo_root = extract_archive_safely(archive_bytes, Path(tmp_dir), self.settings)
 
@@ -178,6 +202,8 @@ class PatchVerificationService:
                 patch_content=patch_candidate.patch_content,
                 declared_changed_files=patch_candidate.changed_files,
                 timeout_seconds=self.settings.PATCH_APPLICATION_TIMEOUT_SECONDS,
+                max_workspace_files=self.settings.MAX_VERIFICATION_FILES,
+                max_workspace_bytes=self.settings.MAX_VERIFICATION_WORKSPACE_BYTES,
             )
 
             if app_result.status != "APPLIED":
@@ -196,10 +222,8 @@ class PatchVerificationService:
                     metadata={"reason": "PATCH_APPLICATION_FAILED", "details": app_result.stderr},
                 )
 
-                classification = (
-                    VerificationFailureClassification.UNEXPECTED_WORKSPACE_CHANGE
-                    if "unexpected" in app_result.stderr.lower()
-                    else VerificationFailureClassification.PATCH_APPLICATION_FAILED
+                classification = classify_patch_application_failure(
+                    app_result, timed_out=app_result.status == "TIMEOUT"
                 )
 
                 failed_run = PatchVerificationRun(
@@ -212,8 +236,12 @@ class PatchVerificationService:
                     repository_sha256=sha256_before,
                     patch_application_status=app_result.status,
                     patch_application_exit_code=app_result.exit_code,
-                    patch_application_stdout=app_result.stdout,
-                    patch_application_stderr=app_result.stderr,
+                    patch_application_stdout=truncate_output(
+                        app_result.stdout, self.settings.MAX_VERIFICATION_OUTPUT_BYTES
+                    ),
+                    patch_application_stderr=truncate_output(
+                        app_result.stderr, self.settings.MAX_VERIFICATION_OUTPUT_BYTES
+                    ),
                     regression_status="SKIPPED",
                     regression_exit_code=None,
                     regression_stdout="",
@@ -277,14 +305,9 @@ class PatchVerificationService:
                     },
                 )
 
-                if reg_raw.timed_out:
-                    reg_classification = VerificationFailureClassification.REGRESSION_TIMEOUT
-                elif reg_raw.exit_code == 1:
-                    reg_classification = VerificationFailureClassification.REGRESSION_STILL_FAILING
-                else:
-                    reg_classification = (
-                        VerificationFailureClassification.REGRESSION_EXECUTION_ERROR
-                    )
+                reg_classification = classify_regression_failure(
+                    reg_raw.exit_code, timed_out=reg_raw.timed_out
+                )
 
                 failed_reg_run = PatchVerificationRun(
                     id=verification_id,
@@ -296,12 +319,20 @@ class PatchVerificationService:
                     repository_sha256=sha256_before,
                     patch_application_status=app_result.status,
                     patch_application_exit_code=app_result.exit_code,
-                    patch_application_stdout=app_result.stdout,
-                    patch_application_stderr=app_result.stderr,
+                    patch_application_stdout=truncate_output(
+                        app_result.stdout, self.settings.MAX_VERIFICATION_OUTPUT_BYTES
+                    ),
+                    patch_application_stderr=truncate_output(
+                        app_result.stderr, self.settings.MAX_VERIFICATION_OUTPUT_BYTES
+                    ),
                     regression_status=regression_status,
                     regression_exit_code=reg_raw.exit_code,
-                    regression_stdout=reg_raw.stdout,
-                    regression_stderr=reg_raw.stderr,
+                    regression_stdout=truncate_output(
+                        reg_raw.stdout, self.settings.MAX_VERIFICATION_OUTPUT_BYTES
+                    ),
+                    regression_stderr=truncate_output(
+                        reg_raw.stderr, self.settings.MAX_VERIFICATION_OUTPUT_BYTES
+                    ),
                     regression_duration_ms=int(reg_raw.duration_ms),
                     baseline_status="SKIPPED",
                     baseline_command="pytest",
@@ -366,12 +397,9 @@ class PatchVerificationService:
                     metadata={"reason": "BASELINE_TEST_FAILURE", "exit_code": base_raw.exit_code},
                 )
 
-                if base_raw.timed_out:
-                    base_classification = VerificationFailureClassification.BASELINE_TIMEOUT
-                elif base_raw.exit_code == 1:
-                    base_classification = VerificationFailureClassification.BASELINE_TEST_FAILURE
-                else:
-                    base_classification = VerificationFailureClassification.BASELINE_EXECUTION_ERROR
+                base_classification = classify_baseline_failure(
+                    base_raw.exit_code, timed_out=base_raw.timed_out
+                )
 
                 failed_base_run = PatchVerificationRun(
                     id=verification_id,
@@ -383,18 +411,30 @@ class PatchVerificationService:
                     repository_sha256=sha256_before,
                     patch_application_status=app_result.status,
                     patch_application_exit_code=app_result.exit_code,
-                    patch_application_stdout=app_result.stdout,
-                    patch_application_stderr=app_result.stderr,
+                    patch_application_stdout=truncate_output(
+                        app_result.stdout, self.settings.MAX_VERIFICATION_OUTPUT_BYTES
+                    ),
+                    patch_application_stderr=truncate_output(
+                        app_result.stderr, self.settings.MAX_VERIFICATION_OUTPUT_BYTES
+                    ),
                     regression_status=regression_status,
                     regression_exit_code=reg_raw.exit_code,
-                    regression_stdout=reg_raw.stdout,
-                    regression_stderr=reg_raw.stderr,
+                    regression_stdout=truncate_output(
+                        reg_raw.stdout, self.settings.MAX_VERIFICATION_OUTPUT_BYTES
+                    ),
+                    regression_stderr=truncate_output(
+                        reg_raw.stderr, self.settings.MAX_VERIFICATION_OUTPUT_BYTES
+                    ),
                     regression_duration_ms=int(reg_raw.duration_ms),
                     baseline_status=baseline_status,
                     baseline_command="pytest",
                     baseline_exit_code=base_raw.exit_code,
-                    baseline_stdout=base_raw.stdout,
-                    baseline_stderr=base_raw.stderr,
+                    baseline_stdout=truncate_output(
+                        base_raw.stdout, self.settings.MAX_VERIFICATION_OUTPUT_BYTES
+                    ),
+                    baseline_stderr=truncate_output(
+                        base_raw.stderr, self.settings.MAX_VERIFICATION_OUTPUT_BYTES
+                    ),
                     baseline_duration_ms=int(base_raw.duration_ms),
                     verdict=PatchVerificationVerdict.UNVERIFIED,
                     failure_classification=base_classification,
@@ -413,9 +453,22 @@ class PatchVerificationService:
                 metadata={"exit_code": base_raw.exit_code, "duration_ms": base_raw.duration_ms},
             )
 
-        # 5. Source Integrity Post-Check (Ensuring archive on disk was NEVER modified)
-        sha256_after = hashlib.sha256(archive_bytes).hexdigest()
-        if sha256_before != sha256_after:
+        # 6. Source Integrity Post-Check (Ensuring stored repository archive was NEVER modified)
+        post_archive_bytes = await self.repo.get_archive_bytes(repo_meta.storage_path)
+        sha256_after = hashlib.sha256(post_archive_bytes or b"").hexdigest()
+        source_integrity_intact = sha256_before == sha256_after
+
+        final_verdict, final_classification = determine_double_validation_verdict(
+            patch_applied=app_result.status == "APPLIED",
+            patch_classification=None,
+            regression_passed=regression_passed,
+            regression_classification=None,
+            baseline_passed=baseline_passed,
+            baseline_classification=None,
+            source_integrity_intact=source_integrity_intact,
+        )
+
+        if not source_integrity_intact:
             await self.investigation_service.record_event(
                 investigation_id=investigation_id,
                 event_type=EventType.SOURCE_INTEGRITY_VIOLATION,
@@ -440,18 +493,30 @@ class PatchVerificationService:
                 repository_sha256=sha256_before,
                 patch_application_status=app_result.status,
                 patch_application_exit_code=app_result.exit_code,
-                patch_application_stdout=app_result.stdout,
-                patch_application_stderr=app_result.stderr,
+                patch_application_stdout=truncate_output(
+                    app_result.stdout, self.settings.MAX_VERIFICATION_OUTPUT_BYTES
+                ),
+                patch_application_stderr=truncate_output(
+                    app_result.stderr, self.settings.MAX_VERIFICATION_OUTPUT_BYTES
+                ),
                 regression_status=regression_status,
                 regression_exit_code=reg_raw.exit_code,
-                regression_stdout=reg_raw.stdout,
-                regression_stderr=reg_raw.stderr,
+                regression_stdout=truncate_output(
+                    reg_raw.stdout, self.settings.MAX_VERIFICATION_OUTPUT_BYTES
+                ),
+                regression_stderr=truncate_output(
+                    reg_raw.stderr, self.settings.MAX_VERIFICATION_OUTPUT_BYTES
+                ),
                 regression_duration_ms=int(reg_raw.duration_ms),
                 baseline_status=baseline_status,
                 baseline_command="pytest",
                 baseline_exit_code=base_raw.exit_code,
-                baseline_stdout=base_raw.stdout,
-                baseline_stderr=base_raw.stderr,
+                baseline_stdout=truncate_output(
+                    base_raw.stdout, self.settings.MAX_VERIFICATION_OUTPUT_BYTES
+                ),
+                baseline_stderr=truncate_output(
+                    base_raw.stderr, self.settings.MAX_VERIFICATION_OUTPUT_BYTES
+                ),
                 baseline_duration_ms=int(base_raw.duration_ms),
                 verdict=PatchVerificationVerdict.UNVERIFIED,
                 failure_classification=VerificationFailureClassification.SOURCE_INTEGRITY_VIOLATION,
@@ -470,7 +535,7 @@ class PatchVerificationService:
             metadata={"sha256": sha256_after},
         )
 
-        # 6. Success: Both test suites passed and source integrity confirmed
+        # 7. Success: Both test suites passed and source integrity confirmed
         # Transition lifecycle: VERIFYING -> COMPLETED
         await self.investigation_service.transition_investigation(
             investigation_id=investigation_id,
@@ -493,21 +558,33 @@ class PatchVerificationService:
             repository_sha256=sha256_before,
             patch_application_status=app_result.status,
             patch_application_exit_code=app_result.exit_code,
-            patch_application_stdout=app_result.stdout,
-            patch_application_stderr=app_result.stderr,
+            patch_application_stdout=truncate_output(
+                app_result.stdout, self.settings.MAX_VERIFICATION_OUTPUT_BYTES
+            ),
+            patch_application_stderr=truncate_output(
+                app_result.stderr, self.settings.MAX_VERIFICATION_OUTPUT_BYTES
+            ),
             regression_status=regression_status,
             regression_exit_code=reg_raw.exit_code,
-            regression_stdout=reg_raw.stdout,
-            regression_stderr=reg_raw.stderr,
+            regression_stdout=truncate_output(
+                reg_raw.stdout, self.settings.MAX_VERIFICATION_OUTPUT_BYTES
+            ),
+            regression_stderr=truncate_output(
+                reg_raw.stderr, self.settings.MAX_VERIFICATION_OUTPUT_BYTES
+            ),
             regression_duration_ms=int(reg_raw.duration_ms),
             baseline_status=baseline_status,
             baseline_command="pytest",
             baseline_exit_code=base_raw.exit_code,
-            baseline_stdout=base_raw.stdout,
-            baseline_stderr=base_raw.stderr,
+            baseline_stdout=truncate_output(
+                base_raw.stdout, self.settings.MAX_VERIFICATION_OUTPUT_BYTES
+            ),
+            baseline_stderr=truncate_output(
+                base_raw.stderr, self.settings.MAX_VERIFICATION_OUTPUT_BYTES
+            ),
             baseline_duration_ms=int(base_raw.duration_ms),
-            verdict=PatchVerificationVerdict.VERIFIED,
-            failure_classification=None,
+            verdict=final_verdict,
+            failure_classification=final_classification,
             workspace_file_manifest=manifest_after,
             created_at=now,
             completed_at=datetime.now(UTC),
@@ -515,11 +592,20 @@ class PatchVerificationService:
         saved_run = await self.repo.save_patch_verification_run(verified_run)
         return self._to_response(saved_run)
 
-    async def get_latest_verification(self, investigation_id: UUID) -> PatchVerificationResponse:
+    async def get_latest_verification(
+        self, investigation_id: UUID, user_id: str | None = None
+    ) -> PatchVerificationResponse:
         """Retrieve latest verification evidence record for an investigation."""
         inv = await self.repo.get_by_id(investigation_id)
         if inv is None:
             raise InvestigationNotFoundError(str(investigation_id))
+
+        if user_id is not None and inv.user_id and inv.user_id != user_id:
+            raise LifecycleException(
+                f"Investigation '{investigation_id}' does not belong to authenticated user/tenant.",
+                code="INVESTIGATION_PRECONDITION_FAILED",
+                status_code=403,
+            )
 
         run = await self.repo.get_patch_verification_run_by_investigation_id(investigation_id)
         if run is None:
@@ -530,11 +616,20 @@ class PatchVerificationService:
             )
         return self._to_response(run)
 
-    async def list_verifications(self, investigation_id: UUID) -> list[PatchVerificationResponse]:
+    async def list_verifications(
+        self, investigation_id: UUID, user_id: str | None = None
+    ) -> list[PatchVerificationResponse]:
         """Retrieve all verification runs for an investigation."""
         inv = await self.repo.get_by_id(investigation_id)
         if inv is None:
             raise InvestigationNotFoundError(str(investigation_id))
+
+        if user_id is not None and inv.user_id and inv.user_id != user_id:
+            raise LifecycleException(
+                f"Investigation '{investigation_id}' does not belong to authenticated user/tenant.",
+                code="INVESTIGATION_PRECONDITION_FAILED",
+                status_code=403,
+            )
 
         runs = await self.repo.get_patch_verification_runs_by_investigation_id(investigation_id)
         return [self._to_response(r) for r in runs]
