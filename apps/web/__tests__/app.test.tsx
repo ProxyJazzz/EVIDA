@@ -81,6 +81,15 @@ describe("Frontend Foundation Tests", () => {
     expect(screen.getAllByText(/REGRESSION PROVEN/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/tests\/test_regression\.py/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/ASSERTION_FAILURE/i)).toBeDefined();
-    expect(screen.getByText(/EVIDA Invariant/i)).toBeDefined();
+    expect(screen.getAllByText(/EVIDA Invariant/i).length).toBeGreaterThan(0);
+
+    // Phase 5: Patch Generation & Candidate Validation
+    expect(screen.getByText(/Patch Candidate/i)).toBeDefined();
+    expect(screen.getByText(/AI PROPOSED PATCH/i)).toBeDefined();
+    expect(screen.getAllByText(/NOT VERIFIED/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/VALIDATED/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/UNIFIED DIFF PREVIEW/i)).toBeDefined();
+    expect(screen.getByText(/PATCH_VALIDATED ≠ BUG_FIXED/i)).toBeDefined();
+    expect(screen.getByText(/Phase 5 Safety Guarantee/i)).toBeDefined();
   });
 });

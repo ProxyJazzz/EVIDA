@@ -151,4 +151,54 @@ Generated test content is capped at `MAX_GENERATED_TEST_BYTES` (20,000 bytes) to
 - The test runs exclusively inside the ephemeral sandbox runner with stripped environment variables (`NEBIUS_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY` scrubbed).
 - Hard timeouts (30s) and memory caps prevent infinite loop denial-of-service.
 
+---
+
+## 8. Phase 5 Patch Generation & Candidate Validation Security
+
+### 8.1 The "Untrusted Patch" Maxim
+Patches synthesized by AI models are strictly untrusted candidates. A proposed patch may attempt to weaken tests, inject backdoors, modify security infrastructure, overwrite configuration or secrets, or execute path traversal attacks. EVIDA treats patch candidates as untrusted data until deterministic validation accepts them and Phase 6 executes verification.
+
+### 8.2 Deterministic Unified Diff Parsing
+Before persistence, the unified diff is deterministically parsed by `patch_validator.py`:
+- Diff headers `--- a/<path>` and `+++ b/<path>` are extracted and canonicalized.
+- Declared `changed_files` in the model's structured payload must match the actual files modified in the diff. Any mismatch triggers `MALFORMED_DIFF`.
+- Hunk counts (`@@ -l,s +l,s @@`) are counted and bounded by `MAX_PATCH_HUNKS` (20).
+
+### 8.3 Path Traversal & Boundary Safety
+Every target path in the patch is validated:
+- Must be a relative path (cannot start with `/` or contain drive letters).
+- Must not contain `..` or traverse outside the repository directory.
+- Must target an existing file present in the original repository archive (`FILE_NOT_FOUND` if targeting nonexistent files).
+
+### 8.4 Test Suite Immutability (Anti-Cheating Policy)
+A classic failure mode of automated code synthesis is weakening or deleting tests so that broken code appears to pass.
+- **Rule:** Any patch candidate that modifies, deletes, or adds files under `tests/` or modifies the proven regression test is immediately rejected with `TEST_MODIFICATION`.
+- Phase 5 enforces that repair patches modify production source files only.
+
+### 8.5 Sensitive Files Shield
+Patches targeting any sensitive system files are rejected with `SENSITIVE_FILE_MODIFICATION`:
+- Environment files: `.env`, `.env.local`, `.env.production`
+- Secrets and keys: `*.pem`, `*.key`, `*.pfx`, `id_rsa`, `id_ed25519`
+- Cloud credentials: `credentials.json`, `service-account*.json`
+- Security and infrastructure files: `Dockerfile`, `docker-compose*.yml`, `.github/workflows/`
+
+### 8.6 Dangerous Code Pattern Inspection
+Added lines in the diff (lines starting with `+`) are analyzed for dangerous calls:
+- Process spawning: `subprocess`, `os.system`, `os.popen`, `pty`, `multiprocessing`
+- Network calls: `socket`, `requests`, `urllib`, `http.client`, `httpx`, `aiohttp`
+- Dynamic execution: `eval(`, `exec(`
+Any violation immediately triggers `SECURITY_VIOLATION`.
+
+### 8.7 Bounded Scope & Sizing Limits
+- Number of modified files is bounded by `MAX_PATCH_FILES` (5).
+- Number of hunks is bounded by `MAX_PATCH_HUNKS` (20).
+- Total patch bytes is bounded by `MAX_GENERATED_PATCH_BYTES` (50,000 bytes).
+- Patches modifying files outside the hypothesis-confirmed `affected_files` are rejected with `OUT_OF_SCOPE_CHANGE`.
+
+### 8.8 Architectural Immutability: No Patch Application
+Phase 5 **never applies or executes** candidate patches:
+- Zero calls to `git apply`, `patch`, or filesystem file writers on the source repository.
+- The original repository archive and workspace remain cryptographically identical (proven by SHA-256 snapshots before and after patch generation).
+- Execution is strictly quarantined until Phase 6 in an ephemeral, unprivileged sandbox.
+
 

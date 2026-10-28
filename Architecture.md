@@ -343,5 +343,62 @@ LIFECYCLE TRANSITION
 - Sandbox execution runs in unprivileged boundaries with stripped credentials (`NEBIUS_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY` scrubbed).
 - Output truncation prevents memory blowup while preserving failure diagnostics.
 
+---
+
+## 8. Patch Generation & Candidate Validation Pipeline (Phase 5)
+
+```text
+REGRESSION_PROVEN EVIDENCE (Phase 4) + HYPOTHESIS (Phase 3)
+        │
+        ▼
+BOUNDED PATCH CONTEXT BUILDER
+  ├── Original reproduction evidence & failure traceback
+  ├── Hypothesis root cause candidate & affected files
+  ├── Proven regression test code & failure stdout/stderr
+  └── Target source files & existing unit tests
+        │
+        ▼
+STRUCTURED PATCH PROMPT (evida-patch-generation-v1)
+  ├── Model: nvidia/Nemotron-3_5-Lightning via Nebius Token Factory
+  └── Strict Structured JSON (description, unified_diff, changed_files, summary, reasoning)
+        │
+        ▼
+DETERMINISTIC PATCH VALIDATOR
+  ├── Format Check: patch_format == "unified_diff"
+  ├── Diff Header & Path Extraction: Parse '--- a/path' and '+++ b/path'
+  ├── Path Traversal & Absolute Paths: Reject '/', '..', or out-of-tree targets
+  ├── Test Immutability: Reject ANY modification targeting tests/
+  ├── Sensitive Files Shield: Reject edits to .env*, credentials, pem, key, Dockerfile
+  ├── Repository File Existence: Changed file must exist in original repository archive
+  ├── Scope Boundary: Changed files must remain strictly within hypothesis affected_files
+  ├── Safety AST/Pattern Check: Reject subprocess, socket, os.system, eval/exec
+  └── Bounded Size Checks: MAX_PATCH_FILES (5), MAX_PATCH_HUNKS (20), MAX_GENERATED_PATCH_BYTES (50,000)
+        │
+        ▼
+PERSISTENCE & AUDIT TIMELINE
+  ├── Table: patch_candidates (Record validated candidate patch)
+  ├── Audit Events: PATCH_GENERATION_STARTED, PATCH_GENERATED, PATCH_VALIDATED, PATCH_REJECTED
+  └── Source Integrity: ZERO filesystem mutation on source code (no git apply, no file rewrite)
+        │
+        ▼
+LIFECYCLE STATUS
+  Remains VERIFYING (Awaiting Phase 6 deterministic verification)
+```
+
+### 8.1 Core Invariant: The Patch Pipeline Distinction
+```text
+PATCH_GENERATED ≠ PATCH_VALIDATED ≠ PATCH_VERIFIED ≠ BUG_FIXED
+```
+1. **PATCH_GENERATED:** AI synthesized a candidate unified diff proposal.
+2. **PATCH_VALIDATED:** EVIDA confirmed that the patch is structurally sound and adheres to all security and scope policies.
+3. **PATCH_VERIFIED:** Reserved exclusively for Phase 6 after deterministic sandbox execution against the proven regression test.
+4. **BUG_FIXED:** Never claimed in Phase 5. The defect remains active until Phase 6 produces execution proof.
+
+### 8.2 Strict Separation of Duties
+- Phase 5 **proposes and validates** candidate patches.
+- Phase 5 **never applies** patches to the repository (no `git apply`, no workspace rewriting).
+- Phase 6 **executes and verifies** patches in isolated workspaces.
+- Test suites are strictly immutable: AI is prevented from modifying `tests/` or weakening the proven regression test.
+
 
 

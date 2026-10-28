@@ -10,6 +10,7 @@ from fastapi import APIRouter, File, UploadFile, status
 from app.api.dependencies import (
     AIInvestigationServiceDep,
     InvestigationServiceDep,
+    PatchServiceDep,
     RegressionServiceDep,
     ReproductionServiceDep,
     UserIdDep,
@@ -20,6 +21,7 @@ from app.domain.investigations.schemas import (
     InvestigationHypothesisResponse,
     InvestigationListResponse,
     InvestigationResponse,
+    PatchCandidateResponse,
     RegressionTestResponse,
 )
 from app.domain.repositories.models import (
@@ -225,3 +227,29 @@ async def get_regression_test(
             status_code=404,
         )
     return result
+
+
+@router.post(
+    "/{investigation_id}/patch",
+    response_model=PatchCandidateResponse,
+    summary="Generate and validate candidate patch",
+)
+async def generate_patch(
+    investigation_id: UUID,
+    service: PatchServiceDep,
+) -> PatchCandidateResponse:
+    """Synthesize a candidate unified diff patch based on proven regression evidence and validate safety."""
+    return await service.generate_and_validate_patch(investigation_id)
+
+
+@router.get(
+    "/{investigation_id}/patch",
+    response_model=PatchCandidateResponse,
+    summary="Get latest candidate patch and validation result",
+)
+async def get_patch(
+    investigation_id: UUID,
+    service: PatchServiceDep,
+) -> PatchCandidateResponse:
+    """Retrieve the latest synthesized candidate patch and its deterministic validation result."""
+    return await service.get_patch_candidate(investigation_id)

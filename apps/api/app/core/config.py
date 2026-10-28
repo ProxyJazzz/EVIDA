@@ -94,6 +94,21 @@ class Settings(BaseSettings):
         description="Canonical regression test prompt template version",
     )
 
+    # Phase 5 Patch Generation & Validation Boundaries
+    MAX_GENERATED_PATCH_BYTES: int = Field(
+        default=50000, description="Max allowed bytes for an AI-generated patch"
+    )
+    MAX_PATCH_FILES: int = Field(
+        default=5, description="Max allowed changed files in a candidate patch"
+    )
+    MAX_PATCH_HUNKS: int = Field(
+        default=20, description="Max allowed diff hunks in a candidate patch"
+    )
+    PATCH_GENERATION_PROMPT_VERSION: str = Field(
+        default="evida-patch-generation-v1",
+        description="Canonical patch generation prompt template version",
+    )
+
     @property
     def is_supabase_configured(self) -> bool:
         """Return True if required Supabase credentials are provided."""

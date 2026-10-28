@@ -190,6 +190,21 @@ class MockAIProvider:
             '  "expected_failure_reason": "The implementation multiplies operands (*) instead of dividing (/), returning 20 instead of 5."\n'
             "}"
         )
+        self._default_patch_response = (
+            "{\n"
+            '  "description": "Correct the divide function to perform mathematical division rather than multiplication.",\n'
+            '  "patch_format": "unified_diff",\n'
+            '  "patch_content": "--- a/src/calculator.py\\n+++ b/src/calculator.py\\n@@ -1,2 +1,2 @@\\n def divide(a, b):\\n-    return a * b\\n+    return a / b\\n",\n'
+            '  "changed_files": ["src/calculator.py"],\n'
+            '  "change_summary": [\n'
+            "    {\n"
+            '      "file": "src/calculator.py",\n'
+            '      "reason": "Replace incorrect multiplication operator (*) with division operator (/)."\n'
+            "    }\n"
+            "  ],\n"
+            '  "reasoning": "The proven regression test and hypothesis show divide(10, 2) evaluates to 20 instead of 5 because multiplication was used instead of division."\n'
+            "}"
+        )
 
     async def generate(
         self,
@@ -201,6 +216,12 @@ class MockAIProvider:
     ) -> AIResponse:
         if self.fixed_response is not None:
             content = self.fixed_response
+        elif (
+            "patch synthesis engine" in system_prompt.lower()
+            or "patch generation" in system_prompt.lower()
+            or "candidate patch" in system_prompt.lower()
+        ):
+            content = self._default_patch_response
         elif (
             "regression test generation engine" in system_prompt.lower()
             or "tests/test_regression.py" in system_prompt.lower()

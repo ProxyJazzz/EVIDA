@@ -201,3 +201,112 @@ Existing Test Files:
 Task:
 Generate a deterministic, self-contained pytest regression test (e.g. tests/test_regression.py) that targets the buggy behavior and fails with an assertion failure against the current, unpatched codebase.
 """
+
+
+# ==============================================================================
+# Phase 5: Patch Generation & Candidate Validation
+# ==============================================================================
+
+PATCH_GENERATION_PROMPT_VERSION = "evida-patch-generation-v1"
+
+PATCH_GENERATION_SYSTEM_PROMPT = """You are EVIDA's patch synthesis engine.
+Core principle: "AI proposes. Evidence decides."
+
+You are generating a candidate patch for an existing software defect.
+The defect has already been reproduced.
+A regression test has already been generated and deterministically proven to fail against the original repository.
+
+Rules:
+1. Generate the smallest safe patch that addresses the demonstrated root cause.
+2. Return a valid unified diff (e.g. starting with '--- a/path' and '+++ b/path').
+3. Do not modify test files. Do not modify or weaken the regression test.
+4. Do not disable assertions or skip tests.
+5. Do not modify unrelated files.
+6. Do not introduce new third-party dependencies or package installations.
+7. Do not use network access or spawn arbitrary processes.
+8. Do not include secrets or credentials.
+9. Do not claim that the bug is fixed. The patch will be independently verified later by EVIDA.
+
+Return ONLY a valid JSON object adhering strictly to this schema:
+{
+  "description": "<concise explanation of what the patch changes>",
+  "patch_format": "unified_diff",
+  "patch_content": "<valid unified diff string>",
+  "changed_files": ["<list of relative file paths modified>"],
+  "change_summary": [
+    {
+      "file": "<relative file path>",
+      "reason": "<specific explanation for changes in this file>"
+    }
+  ],
+  "reasoning": "<concise rationale explaining how this patch addresses the proven defect>"
+}
+"""
+
+
+def build_patch_generation_user_prompt(
+    *,
+    bug_description: str,
+    reproduction_command: str,
+    reproduction_stdout: str,
+    hypothesis: str,
+    root_cause_file: str,
+    root_cause_symbol: str | None,
+    root_cause_description: str,
+    affected_files: list[str],
+    regression_test_path: str,
+    regression_test_content: str,
+    regression_failure_output: str,
+    tree: str,
+    source_files: dict[str, str],
+    test_files: dict[str, str],
+) -> str:
+    """Construct structured patch generation user prompt with evidence chain."""
+    sources_section = ""
+    for path, content in source_files.items():
+        sources_section += f"\n--- File: {path} ---\n{content}\n"
+
+    tests_section = ""
+    for path, content in test_files.items():
+        tests_section += f"\n--- Test: {path} ---\n{content}\n"
+
+    affected_files_section = ", ".join(affected_files) if affected_files else "(none listed)"
+
+    return f"""Target Defect Description:
+{bug_description or "No bug description provided."}
+
+Reproduction Command:
+{reproduction_command}
+
+Reproduction stdout:
+{reproduction_stdout or "(no stdout)"}
+
+Validated Causal Hypothesis:
+{hypothesis}
+
+Root Cause Candidate:
+- File: {root_cause_file}
+- Symbol: {root_cause_symbol or "N/A"}
+- Description: {root_cause_description}
+
+Affected Files:
+{affected_files_section}
+
+Proven Regression Test ({regression_test_path}):
+{regression_test_content}
+
+Observed Regression Test Failure Output:
+{regression_failure_output or "(no failure output captured)"}
+
+Repository Tree:
+{tree}
+
+Relevant Source Files:
+{sources_section or "(no source files)"}
+
+Existing Test Files:
+{tests_section or "(no test files)"}
+
+Task:
+Given this proven defect and regression test, propose the smallest safe patch (as a unified diff) that addresses the root cause in the source code without modifying test files.
+"""

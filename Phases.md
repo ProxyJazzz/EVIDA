@@ -104,16 +104,34 @@ Phase 7: End-to-End Evaluation & Hardening
 - Frontend visualization clearly separating AI PROPOSAL from DETERMINISTIC VERIFICATION with explicit invariant notice (`REGRESSION_PROVEN ≠ BUG_FIXED`).
 - Comprehensive unit and end-to-end integration test suite with deterministic mocks.
 
-### Phase 5 — Candidate Patch Synthesis & Double Verification
-- Synthesis of minimal unified diff patches.
-- Sandbox patch application (`git apply` or diff patcher).
-- Double verification: regression test passes AND full baseline test suite remains green.
-- Evidence collection: logs, CPU/wall time, SHA256 of patched artifacts.
+### Phase 5 — Patch Generation & Candidate Validation (Completed)
+- Synthesis of minimal unified diff patches using proven regression evidence, hypothesis, and bounded context.
+- Versioned patch generation prompt (`PATCH_GENERATION_PROMPT_VERSION = "evida-patch-generation-v1"`).
+- Strongly typed Pydantic v2 `PatchProposal` model (description, patch_format, patch_content, changed_files, change_summary, reasoning).
+- Deterministic unified diff parser (`parse_unified_diff_files_and_hunks`).
+- Path traversal and boundary validator rejecting `/`, `..`, and out-of-tree targets.
+- Test suite immutability enforcement: AI is strictly prohibited from modifying `tests/` or the regression test.
+- Sensitive files shield: rejects changes targeting `.env`, credentials, private keys, or infrastructure.
+- Scope boundary check: changed files must exist in repository and remain within hypothesis `affected_files`.
+- Safety pattern scanner blocking `subprocess`, `os.system`, `socket`, `eval`, `exec`.
+- Strict sizing limits (`MAX_PATCH_FILES = 5`, `MAX_PATCH_HUNKS = 20`, `MAX_GENERATED_PATCH_BYTES = 50,000`).
+- Database migration `20261027050000_patch_candidates.sql` with RLS.
+- Audit timeline integration (`PATCH_GENERATION_STARTED`, `PATCH_GENERATED`, `PATCH_VALIDATED`, `PATCH_REJECTED`).
+- Source repository immutability: zero filesystem mutation (no `git apply`, no rewriting).
+- Standard REST API endpoints:
+  - `POST /api/v1/investigations/{id}/patch`
+  - `GET /api/v1/investigations/{id}/patch`
+- Frontend UI displaying AI Proposal vs Deterministic Evidence, unified diff preview, and prominent `NOT VERIFIED` badge.
+- Comprehensive unit, parser, scope, safety, and API integration test suite.
 
-### Phase 6 — Web Dashboard, Evidence Visualizer & Human Review
-- Next.js interactive timeline for investigation steps.
-- Side-by-side patch diff view with test output evidence.
-- Verified vs Unverified audit badge and download of cryptographic audit evidence bundle.
+### Phase 6 — Deterministic Patch Verification & Double Validation
+- Isolated verification workspace extraction with unpatched repository archive.
+- Sandbox patch application (`git apply` or diff patcher).
+- Deterministic double verification:
+  1. Proven regression test must PASS on patched code.
+  2. Full baseline test suite must remain GREEN (zero regressions).
+- Evidence capture: logs, wall time, SHA256 of patched artifacts.
+- Lifecycle transition to `COMPLETED` upon conclusive verification evidence.
 
 ### Phase 7 — End-to-End Evaluation & Hardening
 - SWE-bench or custom benchmark evaluation.

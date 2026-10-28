@@ -169,3 +169,27 @@ class RegressionTestResponse(BaseModel):
     verification: RegressionVerificationResponse | None = None
     created_at: datetime
     verified_at: datetime | None = None
+
+
+class PatchCandidateResponse(BaseModel):
+    """Public API response contract for an AI-generated patch candidate (Phase 5)."""
+
+    id: UUID
+    investigation_id: UUID
+    hypothesis_id: UUID
+    regression_test_id: UUID
+    status: str
+    description: str
+    patch_format: str = "unified_diff"
+    patch_content: str
+    changed_files: list[str] = Field(default_factory=list)
+    change_summary: list[dict[str, Any]] = Field(default_factory=list)
+    reasoning: str | None = None
+    validation_result: str | None = None
+    validation_errors: list[str] = Field(default_factory=list)
+    verification_status: str = "NOT_VERIFIED"
+    model: str | None = None
+    provider: str | None = None
+    prompt_version: str = "evida-patch-generation-v1"
+    created_at: datetime
+    validated_at: datetime | None = None

@@ -22,6 +22,7 @@ from app.domain.investigations.models import (
     InvestigationStatus,
     RegressionVerificationRun,
 )
+from app.domain.patches.models import PatchCandidateRecord
 from app.domain.repositories.models import (
     Repository,
     RepositoryStatus,
@@ -136,6 +137,21 @@ class InvestigationRepository(Protocol):
         """Retrieve latest verification run for an investigation."""
         ...
 
+    # Phase 5: Patch Candidate Persistence
+    async def save_patch_candidate(self, patch: PatchCandidateRecord) -> PatchCandidateRecord:
+        """Persist or update an AI patch candidate record."""
+        ...
+
+    async def get_patch_candidate_by_investigation_id(
+        self, investigation_id: UUID
+    ) -> PatchCandidateRecord | None:
+        """Retrieve latest patch candidate for an investigation."""
+        ...
+
+    async def get_patch_candidate_by_id(self, patch_id: UUID) -> PatchCandidateRecord | None:
+        """Retrieve patch candidate by primary key UUID."""
+        ...
+
 
 class InMemoryInvestigationRepository:
     """Thread-safe, transaction-consistent in-memory repository for local dev and testing."""
@@ -156,6 +172,7 @@ class InMemoryInvestigationRepository:
         self._verification_runs: dict[
             UUID, list[RegressionVerificationRun]
         ] = {}  # keyed by investigation_id
+        self._patches: dict[UUID, list[PatchCandidateRecord]] = {}  # keyed by investigation_id
         self._archives: dict[str, bytes] = {}
         self._seed_default_data()
 
@@ -396,6 +413,39 @@ class InMemoryInvestigationRepository:
             if not runs:
                 return None
             return runs[-1].model_copy()
+
+    # Phase 5: Patch Candidate Persistence
+    async def save_patch_candidate(self, patch: PatchCandidateRecord) -> PatchCandidateRecord:
+        async with self._lock:
+            if patch.investigation_id not in self._patches:
+                self._patches[patch.investigation_id] = []
+
+            existing = [p for p in self._patches[patch.investigation_id] if p.id == patch.id]
+            if existing:
+                self._patches[patch.investigation_id] = [
+                    patch.model_copy() if p.id == patch.id else p
+                    for p in self._patches[patch.investigation_id]
+                ]
+            else:
+                self._patches[patch.investigation_id].append(patch.model_copy())
+            return patch.model_copy()
+
+    async def get_patch_candidate_by_investigation_id(
+        self, investigation_id: UUID
+    ) -> PatchCandidateRecord | None:
+        async with self._lock:
+            patches = self._patches.get(investigation_id, [])
+            if not patches:
+                return None
+            return patches[-1].model_copy()
+
+    async def get_patch_candidate_by_id(self, patch_id: UUID) -> PatchCandidateRecord | None:
+        async with self._lock:
+            for patches in self._patches.values():
+                for patch in patches:
+                    if patch.id == patch_id:
+                        return patch.model_copy()
+            return None
 
 
 _memory_repo_instance: InMemoryInvestigationRepository | None = None

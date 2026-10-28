@@ -56,7 +56,11 @@ export type InvestigationEventType =
   | "REGRESSION_TEST_VERIFICATION_STARTED"
   | "REGRESSION_TEST_VERIFICATION_COMPLETED"
   | "REGRESSION_TEST_REJECTED"
-  | "REGRESSION_TEST_PROVEN";
+  | "REGRESSION_TEST_PROVEN"
+  | "PATCH_GENERATION_STARTED"
+  | "PATCH_GENERATED"
+  | "PATCH_VALIDATED"
+  | "PATCH_REJECTED";
 
 export interface TokenUsage {
   prompt_tokens: number;
@@ -286,5 +290,56 @@ export interface RegressionTestResponse {
   created_at: string;
   verified_at?: string | null;
 }
+
+export type PatchCandidateStatus = "GENERATED" | "VALIDATED" | "REJECTED";
+
+export type PatchValidationClassification =
+  | "VALID"
+  | "INVALID_FORMAT"
+  | "PATH_VIOLATION"
+  | "SENSITIVE_FILE_MODIFICATION"
+  | "TEST_MODIFICATION"
+  | "OUT_OF_SCOPE_CHANGE"
+  | "PATCH_TOO_LARGE"
+  | "MALFORMED_DIFF"
+  | "FILE_NOT_FOUND"
+  | "SECURITY_VIOLATION";
+
+export interface ChangeSummaryItem {
+  file: string;
+  reason: string;
+}
+
+export interface PatchProposal {
+  description: string;
+  patch_format: "unified_diff";
+  patch_content: string;
+  changed_files: string[];
+  change_summary: ChangeSummaryItem[];
+  reasoning: string;
+}
+
+export interface PatchCandidateResponse {
+  id: string;
+  investigation_id: string;
+  hypothesis_id: string;
+  regression_test_id: string;
+  status: PatchCandidateStatus;
+  description: string;
+  patch_format: string;
+  patch_content: string;
+  changed_files: string[];
+  change_summary: ChangeSummaryItem[];
+  reasoning?: string | null;
+  validation_result?: PatchValidationClassification | string | null;
+  validation_errors: string[];
+  verification_status: "NOT_VERIFIED";
+  model?: string | null;
+  provider?: string | null;
+  prompt_version: string;
+  created_at: string;
+  validated_at?: string | null;
+}
+
 
 

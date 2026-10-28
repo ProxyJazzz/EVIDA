@@ -477,5 +477,92 @@ Same as `POST /regression-test` response body.
 - `REGRESSION_SYNTAX_ERROR` (400): AI proposed test failed Python AST syntax compilation.
 - `REGRESSION_TEST_NOT_FOUND` (404): No regression test has been generated for the investigation.
 
+---
+
+### 3.8 Patch Generation & Candidate Validation Endpoints (Phase 5)
+
+#### Generate & Validate Patch Candidate
+`POST /api/v1/investigations/{investigation_id}/patch`
+
+Synthesizes a minimal unified diff candidate patch targeting the proven root cause, validates syntax, hunk bounds, path traversal, test immutability, scope boundary, and dangerous code patterns, and persists the candidate record.
+
+**Preconditions:**
+- Investigation must be in `VERIFYING` status.
+- A valid Phase 3 hypothesis must exist.
+- A valid Phase 4 regression test must exist with `REGRESSION_PROVEN` status.
+- Associated reproduction run must be `REPRODUCED`.
+- Returns `400 PATCH_PRECONDITION_FAILED` if preconditions are unmet.
+
+**Idempotency:**
+- If a valid `VALIDATED` patch candidate already exists for the current proven regression test, returns the existing record without re-invoking the model.
+
+**Response (200 OK):**
+```json
+{
+  "id": "55555555-5555-5555-5555-555555555555",
+  "investigation_id": "33333333-3333-3333-3333-333333333333",
+  "hypothesis_id": "88888888-8888-8888-8888-888888888888",
+  "regression_test_id": "99999999-9999-9999-9999-999999999999",
+  "status": "VALIDATED",
+  "description": "Correct the divide function to perform mathematical division rather than multiplication.",
+  "patch_format": "unified_diff",
+  "patch_content": "--- a/src/calculator.py\n+++ b/src/calculator.py\n@@ -1,2 +1,2 @@\n def divide(a, b):\n-    return a * b\n+    return a / b\n",
+  "changed_files": [
+    "src/calculator.py"
+  ],
+  "change_summary": [
+    {
+      "file": "src/calculator.py",
+      "reason": "Replace incorrect multiplication operator (*) with division operator (/)."
+    }
+  ],
+  "reasoning": "The proven regression test and hypothesis show divide(10, 2) evaluates to 20 instead of 5 because multiplication was used instead of division.",
+  "verification_status": "NOT_VERIFIED",
+  "model": "nvidia/Nemotron-3_5-Lightning",
+  "provider": "nebius",
+  "prompt_version": "evida-patch-generation-v1",
+  "created_at": "2026-10-28T02:00:00Z"
+}
+```
+
+---
+
+#### Get Latest Patch Candidate
+`GET /api/v1/investigations/{investigation_id}/patch`
+
+Retrieves the latest persisted patch candidate record for the investigation.
+
+**Response (200 OK):**
+Same as `POST /patch` response body.
+
+**Response (404 Not Found):**
+```json
+{
+  "error": {
+    "code": "PATCH_CANDIDATE_NOT_FOUND",
+    "message": "No patch candidate found for investigation '33333333-3333-3333-3333-333333333333'.",
+    "request_id": "4167831d-cb56-46b0-b616-6714138a77c7"
+  }
+}
+```
+
+---
+
+### 3.9 Phase 5 Error Codes
+- `PATCH_PRECONDITION_FAILED` (400): Missing hypothesis, missing proven regression test, or invalid lifecycle state.
+- `INVALID_FORMAT` (400): Format is not unified diff or diff header is missing/corrupted.
+- `MALFORMED_DIFF` (400): Diff contains mismatched declared files, malformed hunk lines, or invalid hunk count.
+- `PATH_VIOLATION` (400): Path traversal (`..`) or absolute path detected in diff target.
+- `TEST_MODIFICATION` (400): Patch attempted to modify files under `tests/` or the regression test.
+- `SENSITIVE_FILE_MODIFICATION` (400): Patch attempted to modify `.env`, credentials, private keys, or Dockerfile.
+- `OUT_OF_SCOPE_CHANGE` (400): Patch modified files outside the hypothesis-confirmed `affected_files`.
+- `PATCH_TOO_LARGE` (400): Patch exceeds file limits (`MAX_PATCH_FILES`), hunk limits (`MAX_PATCH_HUNKS`), or byte limit (`MAX_GENERATED_PATCH_BYTES`).
+- `FILE_NOT_FOUND` (400): Patch targets a file that does not exist in the original repository archive.
+- `SECURITY_VIOLATION` (400): Patch introduces dangerous code patterns (`subprocess`, `socket`, `eval`, `os.system`).
+- `PATCH_CANDIDATE_NOT_FOUND` (404): No patch candidate exists for the investigation.
+- `AI_RESPONSE_SCHEMA_INVALID` (502): AI provider response failed Pydantic schema validation.
+- `AI_RESPONSE_INVALID` (502): AI provider returned unparseable non-JSON text.
+- `AI_PROVIDER_UNAVAILABLE` (503): Nebius AI API timeout or connectivity failure.
+
 
 

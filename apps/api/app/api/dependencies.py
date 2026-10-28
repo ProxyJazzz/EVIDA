@@ -13,6 +13,7 @@ from app.domain.investigations.ai_service import AIInvestigationService
 from app.domain.investigations.regression_service import RegressionService
 from app.domain.investigations.repository import get_investigation_repository
 from app.domain.investigations.service import InvestigationService
+from app.domain.patches.patch_service import PatchService
 from app.domain.repositories.reproduction_service import ReproductionService
 from app.services.supabase import SupabaseClientService
 
@@ -83,3 +84,15 @@ def get_regression_service_dep(
 
 
 RegressionServiceDep = Annotated[RegressionService, Depends(get_regression_service_dep)]
+
+
+def get_patch_service_dep(
+    settings: SettingsDep,
+    investigation_service: InvestigationServiceDep,
+    ai_provider: AIProviderDep,
+) -> PatchService:
+    repo = get_investigation_repository(settings)
+    return PatchService(repo, investigation_service, ai_provider, settings)
+
+
+PatchServiceDep = Annotated[PatchService, Depends(get_patch_service_dep)]

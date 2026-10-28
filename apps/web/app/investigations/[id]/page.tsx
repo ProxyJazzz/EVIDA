@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, Clock, Cpu, FileCode, Play, ShieldAlert, Terminal, TestTube2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock, Cpu, FileCode, GitPullRequest, Play, ShieldAlert, ShieldCheck, Terminal, TestTube2 } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 
 interface InvestigationPageProps {
@@ -80,6 +80,40 @@ export default async function InvestigationPage({ params }: InvestigationPagePro
       stdout: "============================= test session starts ==============================\nFAILED tests/test_regression.py::test_divide_regression - assert 20 == 5\n============================== 1 failed in 0.12s ===============================",
       stderr: "",
     },
+  };
+
+  const patchCandidate = {
+    id: "patch-55555555-5555-5555-5555-555555555555",
+    status: "VALIDATED",
+    verification_status: "NOT_VERIFIED",
+    description: "Correct the divide function in src/calculator.py to perform mathematical division instead of multiplication.",
+    patch_format: "unified_diff",
+    patch_content: "--- a/src/calculator.py\n+++ b/src/calculator.py\n@@ -1,2 +1,2 @@\n def divide(a, b):\n-    return a * b\n+    return a / b",
+    changed_files: ["src/calculator.py"],
+    change_summary: [
+      {
+        file: "src/calculator.py",
+        reason: "Replace incorrect multiplication operator (*) with division operator (/)."
+      }
+    ],
+    reasoning: "The proven regression test and hypothesis show divide(10, 2) evaluates to 20 instead of 5 because multiplication was used instead of division.",
+    provider: "Nebius",
+    model: "nvidia/Nemotron-3_5-Lightning",
+    prompt_version: "evida-patch-generation-v1",
+    validation: {
+      classification: "VALID",
+      is_valid: true,
+      hunk_count: 1,
+      file_count: 1,
+      checks: [
+        { name: "Unified Diff Syntax & Line Numbers", passed: true },
+        { name: "Path Traversal & Boundary Safety", passed: true },
+        { name: "Test Immutability (tests/ untouched)", passed: true },
+        { name: "Sensitive Files Shield (.env, keys)", passed: true },
+        { name: "Scope Boundary (affected files only)", passed: true },
+        { name: "Execution Safety (no subprocess/socket)", passed: true },
+      ]
+    }
   };
 
   return (
@@ -391,6 +425,187 @@ export default async function InvestigationPage({ params }: InvestigationPagePro
             <div className="p-3 rounded bg-surface/50 border border-surface-border font-mono text-[11px] text-gray-400">
               <span className="text-amber-400 font-semibold block mb-0.5">EVIDA Invariant</span>
               <span>REGRESSION_PROVEN confirms defect reproduction on the original repository. Source code has not been modified; bug is not yet fixed. Ready for Phase 5 patch generation.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Phase 5: Patch Generation & Candidate Validation */}
+      <div className="rounded-xl border border-surface-border bg-surface/40 p-6 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-surface-border pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-emerald-950/40 border border-emerald-800/50">
+              <GitPullRequest className="w-5 h-5 text-emerald-400" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-semibold text-white">Patch Candidate</h2>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface border border-surface-border text-gray-400">
+                  PHASE 5
+                </span>
+              </div>
+              <p className="text-xs text-gray-400 font-mono mt-0.5">
+                AI proposes repair candidate. Deterministic rules validate diff, bounds, and security.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <StatusBadge status={patchCandidate.status} />
+            <StatusBadge status={patchCandidate.verification_status} />
+          </div>
+        </div>
+
+        {/* Phase 5 Strict Invariant Banner */}
+        <div className="p-4 rounded-lg bg-amber-950/20 border border-amber-800/40 font-mono text-xs text-amber-300/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 font-semibold text-amber-400">
+              <span className="px-1.5 py-0.5 rounded bg-amber-900/40 border border-amber-700/50 text-[10px]">
+                NOT VERIFIED
+              </span>
+              <span>Candidate Proposed & Validated — Not Executed</span>
+            </div>
+            <p className="text-[11px] text-gray-400">
+              This patch was proposed and structurally validated by EVIDA. It has not yet been executed against the proven regression test. Original source code remains untouched.
+            </p>
+          </div>
+          <div className="text-[11px] text-gray-400 sm:text-right shrink-0">
+            <span className="text-gray-500">Pipeline Invariant:</span>
+            <div className="text-gray-300 font-bold">PATCH_VALIDATED ≠ BUG_FIXED</div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left Column: AI Proposal Details & Change Summary */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-mono font-semibold text-emerald-400 uppercase tracking-wider">
+                AI PROPOSED PATCH
+              </span>
+              <div className="flex items-center gap-2 text-[11px] font-mono text-gray-400">
+                <Cpu className="w-3.5 h-3.5 text-gray-500" />
+                <span>{patchCandidate.model}</span>
+              </div>
+            </div>
+
+            <div className="space-y-3 font-mono text-xs">
+              <div>
+                <span className="text-gray-400 block mb-0.5">Description</span>
+                <p className="text-gray-200 bg-background/80 p-3 rounded border border-surface-border">
+                  {patchCandidate.description}
+                </p>
+              </div>
+
+              <div>
+                <span className="text-gray-400 block mb-0.5">Reasoning / Rationale</span>
+                <p className="text-gray-300 bg-background/50 p-2.5 rounded border border-surface-border text-[11px]">
+                  {patchCandidate.reasoning}
+                </p>
+              </div>
+
+              <div>
+                <span className="text-gray-400 block mb-1">Declared Changed Files</span>
+                <div className="flex flex-wrap gap-2">
+                  {patchCandidate.changed_files.map((file) => (
+                    <span
+                      key={file}
+                      className="px-2 py-1 rounded bg-background border border-surface-border text-emerald-400 font-mono text-[11px]"
+                    >
+                      {file}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <span className="text-gray-400 block mb-1">Change Summary</span>
+                <div className="space-y-1.5">
+                  {patchCandidate.change_summary.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="p-2 rounded bg-surface/30 border border-surface-border text-[11px]"
+                    >
+                      <span className="text-emerald-400 font-semibold">{item.file}</span>
+                      <p className="text-gray-300 text-[10px] mt-0.5">{item.reason}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-surface-border text-[11px]">
+                <div>
+                  <span className="text-gray-500 block">Prompt Version</span>
+                  <span className="text-gray-300">{patchCandidate.prompt_version}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500 block">Patch Format</span>
+                  <span className="text-gray-300 font-semibold uppercase">{patchCandidate.patch_format}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Unified Diff Viewer & Deterministic Validation */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-mono font-semibold text-blue-400 uppercase tracking-wider">
+                UNIFIED DIFF PREVIEW
+              </span>
+              <span className="text-[11px] font-mono text-gray-400">
+                {patchCandidate.validation.hunk_count} hunk(s) · {patchCandidate.validation.file_count} file(s)
+              </span>
+            </div>
+
+            {/* Monospace Unified Diff Viewer with Line Highlighting */}
+            <div className="rounded-lg border border-surface-border bg-black/90 p-3 font-mono text-[11px] overflow-x-auto space-y-0.5">
+              {patchCandidate.patch_content.split("\n").map((line, idx) => {
+                let textClass = "text-gray-400";
+                let bgClass = "bg-transparent";
+                if (line.startsWith("---") || line.startsWith("+++")) {
+                  textClass = "text-blue-300 font-bold";
+                  bgClass = "bg-blue-950/20";
+                } else if (line.startsWith("@@")) {
+                  textClass = "text-cyan-400 font-semibold";
+                  bgClass = "bg-cyan-950/20";
+                } else if (line.startsWith("+")) {
+                  textClass = "text-emerald-400";
+                  bgClass = "bg-emerald-950/30";
+                } else if (line.startsWith("-")) {
+                  textClass = "text-rose-400";
+                  bgClass = "bg-rose-950/30";
+                }
+                return (
+                  <div key={idx} className={`px-2 py-0.5 rounded ${bgClass} ${textClass} whitespace-pre`}>
+                    {line}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Deterministic Validation Results */}
+            <div className="rounded-lg border border-surface-border bg-surface/30 p-4 space-y-3">
+              <div className="flex items-center justify-between border-b border-surface-border pb-2">
+                <span className="text-xs font-mono font-semibold text-gray-300 flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  Deterministic Validation Checks
+                </span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950/60 text-emerald-400 border border-emerald-800/60 font-semibold">
+                  {patchCandidate.validation.classification}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
+                {patchCandidate.validation.checks.map((check, idx) => (
+                  <div key={idx} className="flex items-center gap-1.5 text-gray-300">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <span className="truncate">{check.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Invariant Note */}
+            <div className="p-3 rounded bg-surface/50 border border-surface-border font-mono text-[11px] text-gray-400">
+              <span className="text-amber-400 font-semibold block mb-0.5">Phase 5 Safety Guarantee</span>
+              <span>The candidate patch has not mutated the source workspace. Phase 6 will execute the patch and rerun the proven regression test inside an isolated sandbox.</span>
             </div>
           </div>
         </div>

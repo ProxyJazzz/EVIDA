@@ -110,3 +110,20 @@ def test_regression_tests_migration_exists_and_valid():
     assert "idx_regression_verification_runs_investigation_created" in content
     assert "USING (true)" not in content
     assert "WITH CHECK (true)" not in content
+
+
+def test_patch_candidates_migration_exists_and_valid():
+    patch_migration = (
+        PROJECT_ROOT / "supabase" / "migrations" / "20261027050000_patch_candidates.sql"
+    )
+    assert patch_migration.exists(), (
+        "Phase 5 patch candidates migration file must exist"
+    )
+    content = patch_migration.read_text(encoding="utf-8")
+
+    assert "public.patch_candidates" in content
+    assert "ALTER TABLE public.patch_candidates ENABLE ROW LEVEL SECURITY;" in content
+    assert "idx_patch_candidates_investigation_created" in content
+    assert "idx_patch_candidates_regression_test_id" in content
+    assert "USING (true)" not in content
+    assert "WITH CHECK (true)" not in content

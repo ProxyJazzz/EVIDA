@@ -35,11 +35,29 @@ export function StatusBadge({ status }: StatusBadgeProps) {
     );
   }
 
-  if (normalized === "TEST_REJECTED") {
+  if (normalized === "VALIDATED" || normalized === "PATCH_VALIDATED") {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-semibold bg-emerald-950/60 text-emerald-400 border border-emerald-800/60">
+        <CheckCircle2 className="w-3.5 h-3.5" />
+        {normalized}
+      </span>
+    );
+  }
+
+  if (normalized === "NOT_VERIFIED" || normalized === "NOT VERIFIED") {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-semibold bg-amber-950/60 text-amber-400 border border-amber-800/60">
+        <Clock className="w-3.5 h-3.5" />
+        NOT VERIFIED
+      </span>
+    );
+  }
+
+  if (normalized === "TEST_REJECTED" || normalized === "PATCH_REJECTED" || normalized === "REJECTED") {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-semibold bg-rose-950/60 text-rose-400 border border-rose-800/60">
         <XCircle className="w-3.5 h-3.5" />
-        TEST REJECTED
+        {normalized}
       </span>
     );
   }
